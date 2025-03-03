@@ -40,6 +40,7 @@ class A1RoughCfg( LeggedRobotCfg ):
         reference_state_initialization = False
         # reference_state_initialization_prob = 0.85
         # amp_motion_files = MOTION_FILES
+        amp_motion_files = "datasets/mocap_motions/pace0.txt"
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 0.42] # x,y,z [m]

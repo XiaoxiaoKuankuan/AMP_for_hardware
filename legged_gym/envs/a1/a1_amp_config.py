@@ -31,7 +31,7 @@ import glob
 
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-MOTION_FILES = glob.glob('datasets/mocap_motions/*')
+MOTION_FILES = glob.glob('datasets/mocap_motions/*')  # 使用 glob 模块来获取 datasets/mocap_motions/ 目录下的所有文件
 
 
 class A1AMPCfg( LeggedRobotCfg ):
@@ -42,7 +42,7 @@ class A1AMPCfg( LeggedRobotCfg ):
         num_observations = 42
         num_privileged_obs = 48
         reference_state_initialization = True
-        reference_state_initialization_prob = 0.85
+        reference_state_initialization_prob = 0.85  # 以 85% 的概率使用参考轨迹进行初始化
         amp_motion_files = MOTION_FILES
 
     class init_state( LeggedRobotCfg.init_state ):
@@ -146,23 +146,23 @@ class A1AMPCfg( LeggedRobotCfg ):
 class A1AMPCfgPPO( LeggedRobotCfgPPO ):
     runner_class_name = 'AMPOnPolicyRunner'
     class algorithm( LeggedRobotCfgPPO.algorithm ):
-        entropy_coef = 0.01
-        amp_replay_buffer_size = 1000000
-        num_learning_epochs = 5
-        num_mini_batches = 4
+        entropy_coef = 0.01  # 熵系数  值越大，策略的探索性越强
+        amp_replay_buffer_size = 1000000  # AMP 经验回放缓存大小
+        num_learning_epochs = 5  # 每次数据采样后，会执行 5 轮梯度更新
+        num_mini_batches = 4  # 将训练数据拆分成 4 个 mini-batch
 
     class runner( LeggedRobotCfgPPO.runner ):
         run_name = ''
         experiment_name = 'a1_amp_example'
         algorithm_class_name = 'AMPPPO'
-        policy_class_name = 'ActorCritic'
+        policy_class_name = 'ActorCritic'  # 策略网络
         max_iterations = 500000 # number of policy updates
 
-        amp_reward_coef = 2.0
+        amp_reward_coef = 2.0  # AMP 奖励系数
         amp_motion_files = MOTION_FILES
-        amp_num_preload_transitions = 2000000
-        amp_task_reward_lerp = 0.3
-        amp_discr_hidden_dims = [1024, 512]
+        amp_num_preload_transitions = 2000000  # AMP 预加载的轨迹转换数量（200 万个）
+        amp_task_reward_lerp = 0.3  # 任务奖励与 AMP 奖励的混合系数
+        amp_discr_hidden_dims = [1024, 512]  # AMP 判别器（Discriminator）隐藏层维度
 
         min_normalized_std = [0.05, 0.02, 0.05] * 4
 
