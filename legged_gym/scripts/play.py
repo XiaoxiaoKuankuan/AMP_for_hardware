@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
@@ -38,6 +38,34 @@ from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Log
 import numpy as np
 import torch
 
+from rsl_rl.modules import ActorCritic
+def load_policy() -> dict:
+    '''
+    这个函数是按照task_list中的顺序提取对应的动作policy函数
+    '''
+    dance_task_policy = {}
+    path_list = ['/home/pcpc/robot_dance/legged_gym/log/GO2/keep_the_beat/model_1500.pt',
+                '/home/pcpc/robot_dance/legged_gym/log/GO2/pace/model_1500.pt',
+                '/home/pcpc/robot_dance/legged_gym/log/GO2/swing/model_1500.pt',
+                '/home/pcpc/robot_dance/legged_gym/log/GO2/trot/model_1500.pt',
+                '/home/pcpc/robot_dance/legged_gym/log/GO2/turn_and_jump/model_1500.pt',
+                '/home/pcpc/robot_dance/legged_gym/log/GO2/wave/model_1500.pt']
+    task_list = ['go2_dance_beat', 'go2_dance_pace', 'go2_dance_swing', 'go2_dance_trot',
+                 'go2_dance_turn_and_jump', 'go2_dance_wave']
+
+    for i, load_path in enumerate(path_list):
+        env_cfg = task_registry.env_cfgs[task_list[i]]
+        train_cfg = task_registry.train_cfgs[task_list[i]]
+        policy:torch.nn.Module = ActorCritic(env_cfg.env.num_observations, env_cfg.env.num_observations,
+                                             env_cfg.env.num_actions, train_cfg.policy.actor_hidden_dims,
+                                             train_cfg.policy.critic_hidden_dims, train_cfg.policy.activation,
+                                             train_cfg.policy.init_noise_std).to('cuda:0')
+        loaded_dict = torch.load(load_path)
+        policy.load_state_dict(loaded_dict['model_state_dict'])
+        policy.eval()
+        dance_task_policy[task_list[i]] = policy.act_inference
+
+    return dance_task_policy
 
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
@@ -49,20 +77,20 @@ def play(args):
     env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = False
     env_cfg.domain_rand.push_robots = False
-    env_cfg.domain_rand.randomize_gains = False
-    env_cfg.domain_rand.randomize_base_mass = False
-
-    train_cfg.runner.amp_num_preload_transitions = 1
+    # env_cfg.env.debug = True
 
     # prepare environment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
-    _, _ = env.reset()
     obs = env.get_observations()
     # load policy
     train_cfg.runner.resume = True
     ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, train_cfg=train_cfg)
     policy = ppo_runner.get_inference_policy(device=env.device)
-    
+    # policy_dict = load_policy()
+    # policy = policy_dict[args.task]
+
+
+
     # export policy as a jit module (used to run it from C++)
     if EXPORT_POLICY:
         path = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'policies')
@@ -81,12 +109,13 @@ def play(args):
 
     for i in range(10*int(env.max_episode_length)):
         actions = policy(obs.detach())
-        obs, _, rews, dones, infos, _, _ = env.step(actions.detach())
+        obs, _, rews, dones, infos = env.step(actions.detach())
+        # print(actions)
         if RECORD_FRAMES:
             if i % 2:
                 filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', f"{img_idx}.png")
                 env.gym.write_viewer_image_to_file(env.viewer, filename)
-                img_idx += 1 
+                img_idx += 1
         if MOVE_CAMERA:
             camera_position += camera_vel * env.dt
             env.set_camera(camera_position, camera_position + camera_direction)
@@ -105,7 +134,22 @@ def play(args):
                     'base_vel_y': env.base_lin_vel[robot_index, 1].item(),
                     'base_vel_z': env.base_lin_vel[robot_index, 2].item(),
                     'base_vel_yaw': env.base_ang_vel[robot_index, 2].item(),
-                    'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy()
+                    'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy(),
+                    'foot_pos_0_x' : env.toe_pos[robot_index, 0].item(),
+                    'foot_pos_0_y': env.toe_pos[robot_index, 1].item(),
+                    'foot_pos_0_z': env.toe_pos[robot_index, 2].item(),
+                    'foot_pos_1_x': env.toe_pos[robot_index, 3].item(),
+                    'foot_pos_1_y': env.toe_pos[robot_index, 4].item(),
+                    'foot_pos_1_z': env.toe_pos[robot_index, 5].item(),
+                    'foot_pos_2_x': env.toe_pos[robot_index, 6].item(),
+                    'foot_pos_2_y': env.toe_pos[robot_index, 7].item(),
+                    'foot_pos_2_z': env.toe_pos[robot_index, 8].item(),
+                    'foot_pos_3_x': env.toe_pos[robot_index, 9].item(),
+                    'foot_pos_3_y': env.toe_pos[robot_index, 10].item(),
+                    'foot_pos_3_z': env.toe_pos[robot_index, 11].item(),
+                    'base_pos_x' : env.base_pos[robot_index, 0].item(),
+                    'base_pos_y': env.base_pos[robot_index, 1].item(),
+                    'base_pos_z': env.base_pos[robot_index, 2].item(),
                 }
             )
         elif i==stop_state_log:

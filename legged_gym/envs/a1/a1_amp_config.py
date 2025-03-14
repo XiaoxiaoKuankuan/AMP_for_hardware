@@ -72,7 +72,7 @@ class A1AMPCfg( LeggedRobotCfg ):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.25
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 6  # 每隔多少个仿真步（simulation step）执行一次控制策略
+        decimation = 6  # 每隔多少个仿真步（simulation step）执行一次控制策略  4
 
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane'

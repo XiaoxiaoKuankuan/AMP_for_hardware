@@ -34,6 +34,15 @@ from .base.legged_robot import LeggedRobot
 from .a1.a1_config import A1RoughCfg, A1RoughCfgPPO
 from .a1.a1_amp_config import A1AMPCfg, A1AMPCfgPPO
 
+from .go2.go2_dance_config import GO2DanceCfg_swing, GO2DanceCfg_swingPPO
+
+from .go2.go2_dance_config import GO2DanceCfg_beat, GO2DanceCfg_beatPPO
+from .go2.go2_dance_config import GO2DanceCfg_turn_and_jump, GO2DanceCfg_turn_and_jumpPPO
+from .go2.go2_dance_config import GO2DanceCfg_wave, GO2DanceCfg_wavePPO
+from .go2.go2_dance_config import GO2DanceCfg_pace, GO2DanceCfg_pacePPO
+from .go2.go2_dance_config import GO2DanceCfg_trot, GO2DanceCfg_trotPPO
+from .go2.go2_dance_config import GO2DanceCfg_stand, GO2DanceCfg_standPPO
+
 
 import os
 
@@ -41,3 +50,12 @@ from legged_gym.utils.task_registry import task_registry
 
 task_registry.register( "a1", LeggedRobot, A1RoughCfg(), A1RoughCfgPPO() )
 task_registry.register( "a1_amp", LeggedRobot, A1AMPCfg(), A1AMPCfgPPO() )
+# GO2
+task_registry.register( "go2_swing", LeggedRobot, GO2DanceCfg_swing(), GO2DanceCfg_swingPPO() )
+task_registry.register( "go2_beat", LeggedRobot, GO2DanceCfg_beat(), GO2DanceCfg_beatPPO() )
+task_registry.register( "go2_turn_and_jump", LeggedRobot, GO2DanceCfg_turn_and_jump(),
+                        GO2DanceCfg_turn_and_jumpPPO() )
+task_registry.register( "go2_wave", LeggedRobot, GO2DanceCfg_wave(), GO2DanceCfg_wavePPO() )
+task_registry.register( "go2_pace", LeggedRobot, GO2DanceCfg_pace(), GO2DanceCfg_pacePPO() )
+task_registry.register( "go2_trot", LeggedRobot, GO2DanceCfg_trot(), GO2DanceCfg_trotPPO() )
+task_registry.register("go2_stand", LeggedRobot, GO2DanceCfg_stand(), GO2DanceCfg_standPPO())

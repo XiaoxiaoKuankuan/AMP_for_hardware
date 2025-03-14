@@ -54,6 +54,8 @@ class OnPolicyRunner:
         self.policy_cfg = train_cfg["policy"]
         self.device = device
         self.env = env
+        # if self.cfg["dance_task_list"] is not None:
+        #     self.dance_task_name_list = self.cfg["dance_task_list"]  # 舞蹈动作清单列出来
         if self.env.num_privileged_obs is not None:
             num_critic_obs = self.env.num_privileged_obs 
         else:

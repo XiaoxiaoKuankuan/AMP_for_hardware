@@ -33,17 +33,21 @@ from .base_config import BaseConfig
 class LeggedRobotCfg(BaseConfig):
     class env:
         num_envs = 4096
-        num_observations = 235
-        num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
+        num_observations = 60
+        num_privileged_obs = 132 # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise
         num_actions = 12
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         reference_state_initialization = False # initialize state from reference data
 
+        debug = False
+        check_contact = True
+        num_leg = 4
+
     class terrain:
         #  地形参数
-        mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
+        mesh_type = 'plane' # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
         border_size = 25 # [m]
@@ -52,7 +56,7 @@ class LeggedRobotCfg(BaseConfig):
         dynamic_friction = 1.0
         restitution = 0.
         # rough terrain only:
-        measure_heights = True
+        measure_heights = False
         measured_points_x = [-0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8] # 1mx1.6m rectangle (without center line)
         measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
         selected = False # select a unique terrain type and pass all arguments
@@ -87,6 +91,7 @@ class LeggedRobotCfg(BaseConfig):
         default_joint_angles = { # target angles when action = 0.0
             "joint_a": 0., 
             "joint_b": 0.}
+        lowest_root_height = 0.1  # ？
 
     class control:
         control_type = 'P' # P: position, V: velocity, T: torques
@@ -100,14 +105,15 @@ class LeggedRobotCfg(BaseConfig):
 
     class asset:
         file = ""
+        name = "legged_robot"  # actor name ？
         foot_name = "None" # name of the feet bodies, used to index body state and contact force tensors
         penalize_contacts_on = []
         terminate_after_contacts_on = []
         disable_gravity = False
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         fix_base_link = False # fixe the base of the robot
-        default_dof_drive_mode = 3 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
-        self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
+        default_dof_drive_mode = 3  # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
+        self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
         replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
         
@@ -121,15 +127,80 @@ class LeggedRobotCfg(BaseConfig):
 
     class domain_rand:
         randomize_friction = True
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = False
-        added_mass_range = [-1., 1.]
+        friction_range = [0.4, 2.0]  # [0.4, 2.0]
+
+        randomize_restitution = True  # True
+        restitution_range = [0.0, 0.4]
+
+        use_default_friction = True  # 是否使用URDF默认的关节摩擦值
+        use_random_friction_value = False  # 否则 使用随机的关节摩擦值或者指定值
+        joint_friction_range = [0.0, 0.02]  # 随机值范围[0.01, 1.15]
+        joint_friction_value = 0.3  # 指定值
+        randomize_joint_friction = False
+        randomize_joint_friction_each_joint = False
+        joint_friction_factor = [0.8, 1.2]
+
+        use_default_damping = True  # 是否使用URDF默认的阻尼值
+        use_random_damping_value = True  # 否则 使用随机的阻尼值或者指定值
+        joint_damping_range = [0.1, 5.]  # 随机值范围
+        joint_damping_value = 0.01  # 指定值
+        randomize_joint_damping = False
+        randomize_joint_damping_each_joint = False
+        joint_damping_factor = [0.8, 1.2]
+
+        use_default_armature = True  # 是否使用URDF默认的转子惯量值
+        use_random_armature_value = True  # 否则 使用随机的转子惯量值或者指定值
+        joint_armature_range = [0.01, 0.2]  # 随机值范围
+        joint_armature_value = [0.0355, 0.0220, 0.1289]  # 指定值 [0.0354, 0.022, 0.0513] 新电机[0.0355, 0.0220, 0.1289]
+        randomize_joint_armature = False
+        randomize_joint_armature_each_joint = False
+        joint_armature_factor = [0.8, 1.2]
+
+        randomize_motor = True  # PD部分的随机化 等价于PD的随机化 也是所有力矩部分随机化的总开关
+        motor_strength_range = [0.8, 1.2]  # [0.8, 1.2]
+
+        randomize_torque = True  # 力矩整体的随机化
+        torque_multiplier_range = [0.8, 1.2]
+
+        randomize_motor_offset = False  # 位置偏差随机化
+        motor_offset_range = [-0.035, 0.035]  # Offset to add to the motor angles
+
+        randomize_gains = False
+        stiffness_multiplier_range = [0.8, 1.2]  # Factor [0.8, 1.2] [0.2, 2] [0.5, 1.5]
+        damping_multiplier_range = [0.8, 1.2]
+
+        randomize_coulomb_friction = False
+        joint_coulomb_range = [0.1, 1.0]
+        joint_viscous_range = [0.1, 0.9]
+
+        randomize_base_mass = True
+        added_mass_range = [-1., 5.]
+
+        randomize_base_com = True
+        added_com_range = [-0.2, 0.2]
+
+        randomize_link_mass = True
+        added_link_mass_range = [0.0, 0.2]
+
         push_robots = True
         push_interval_s = 15
-        max_push_vel_xy = 1.
-        randomize_gains = False
-        stiffness_multiplier_range = [0.9, 1.1]
-        damping_multiplier_range = [0.9, 1.1]
+        push_vel = True
+        max_push_vel_xy = 1.  # 0.2
+        push_ang = True
+        max_push_ang_vel = 0.6
+        swing_roll = False  # 这个参数是针对实物上跳跃落地后抖动添加的
+        max_swing_roll = 0.35  # 20°
+
+        delay_update_global_steps = 2000
+        action_delay = True  # False True
+        action_curr_step = [0, 1]  # [1, 1] [1, 2]
+        action_delay_view = 1  # 有viewer时(打开渲染)的delay
+        action_buf_len = 8
+        action_delay_range = [0, 0.75]
+
+        RSI = True
+        RSI_rand = False  # 参考轨迹基础上添加随机化
+        RSI_traj_rand = True  # 初始轨迹随机化
 
     class rewards:
         class scales:
@@ -163,9 +234,10 @@ class LeggedRobotCfg(BaseConfig):
             ang_vel = 0.25
             dof_pos = 1.0
             dof_vel = 0.05
+            quat = 1.
             height_measurements = 5.0
         clip_observations = 100.
-        clip_actions = 100.
+        clip_actions = 2.5
 
     class noise:
         add_noise = True
@@ -194,7 +266,7 @@ class LeggedRobotCfg(BaseConfig):
             num_threads = 10
             solver_type = 1  # 0: pgs, 1: tgs
             num_position_iterations = 4
-            num_velocity_iterations = 0
+            num_velocity_iterations = 1
             contact_offset = 0.01  # [m]
             rest_offset = 0.0   # [m]
             bounce_threshold_velocity = 0.5 #0.5 [m/s]
@@ -235,10 +307,10 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 1500 # number of policy updates
+        max_iterations = 15000 # number of policy updates
 
         # logging
-        save_interval = 50 # check for potential saves every this many iterations
+        save_interval = 100 # check for potential saves every this many iterations
         experiment_name = 'test'
         run_name = ''
         # load and resume
