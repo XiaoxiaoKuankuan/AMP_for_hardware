@@ -133,6 +133,7 @@ class TaskRegistry():
             if name is not None:
                 print(f"'train_cfg' provided -> Ignoring 'name={name}'")
         # override cfg from args (if specified)
+        # 根据命令行参数修改训练配置
         _, train_cfg = update_cfg_from_args(None, train_cfg, args)
 
         if log_root=="default":

@@ -42,6 +42,7 @@ class LeggedRobotCfg(BaseConfig):
         reference_state_initialization = False # initialize state from reference data
 
     class terrain:
+        #  地形参数
         mesh_type = 'trimesh' # "heightfield" # none, plane, heightfield or trimesh
         horizontal_scale = 0.1 # [m]
         vertical_scale = 0.005 # [m]
@@ -67,11 +68,11 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 0.75 # slopes above this threshold will be corrected to vertical surfaces
 
     class commands:
-        curriculum = False
-        max_curriculum = 1.
+        curriculum = False  # 是否使用 课程学习（curriculum learning）
+        max_curriculum = 1.  # 课程学习的最大难度级别
         num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10. # time before command are changed[s]
-        heading_command = True # if true: compute ang vel command from heading error
+        resampling_time = 10. # time before command are changed[s]  每 10 秒 更新一次指令
+        heading_command = True # if true: compute ang vel command from heading error 如果 True，那么角速度命令（ang_vel_yaw）不是直接设定的，而是从朝向误差计算得出
         class ranges:
             lin_vel_x = [-1.0, 1.0] # min max [m/s]
             lin_vel_y = [-1.0, 1.0]   # min max [m/s]

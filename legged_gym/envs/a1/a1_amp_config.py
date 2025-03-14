@@ -72,7 +72,7 @@ class A1AMPCfg( LeggedRobotCfg ):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.25
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 6
+        decimation = 6  # 每隔多少个仿真步（simulation step）执行一次控制策略
 
     class terrain( LeggedRobotCfg.terrain ):
         mesh_type = 'plane'
@@ -144,7 +144,7 @@ class A1AMPCfg( LeggedRobotCfg ):
             heading = [-3.14, 3.14]
 
 class A1AMPCfgPPO( LeggedRobotCfgPPO ):
-    runner_class_name = 'AMPOnPolicyRunner'
+    runner_class_name = 'AMPOnPolicyRunner'  # 选择amp_on_policy_runner
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01  # 熵系数  值越大，策略的探索性越强
         amp_replay_buffer_size = 1000000  # AMP 经验回放缓存大小

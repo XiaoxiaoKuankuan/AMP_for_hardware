@@ -85,6 +85,7 @@ class OnPolicyRunner:
         if self.log_dir is not None and self.writer is None:
             self.writer = SummaryWriter(log_dir=self.log_dir, flush_secs=10)
         if init_at_random_ep_len:
+            # 随机化训练回合长度
             self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
         obs = self.env.get_observations()
         privileged_obs = self.env.get_privileged_observations()
@@ -104,7 +105,7 @@ class OnPolicyRunner:
             # Rollout
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
-                    actions = self.alg.act(obs, critic_obs)
+                    actions = self.alg.act(obs, critic_obs)  # ，模型根据当前观测生成动作
                     obs, privileged_obs, rewards, dones, infos, _, _ = self.env.step(actions)
                     critic_obs = privileged_obs if privileged_obs is not None else obs
                     obs, critic_obs, rewards, dones = obs.to(self.device), critic_obs.to(self.device), rewards.to(self.device), dones.to(self.device)
@@ -127,7 +128,7 @@ class OnPolicyRunner:
 
                 # Learning step
                 start = stop
-                self.alg.compute_returns(critic_obs)
+                self.alg.compute_returns(critic_obs)  # 根据当前的环境观测（critic_obs）计算每个时间步骤的回报
             
             mean_value_loss, mean_surrogate_loss = self.alg.update()
             stop = time.time()

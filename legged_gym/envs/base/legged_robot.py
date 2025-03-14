@@ -213,6 +213,7 @@ class LeggedRobot(BaseTask):
         self._resample_commands(env_ids)
 
         if self.cfg.domain_rand.randomize_gains:
+            #  随机化控制增益
             new_randomized_gains = self.compute_randomized_gains(len(env_ids))
             self.randomized_p_gains[env_ids] = new_randomized_gains[0]
             self.randomized_d_gains[env_ids] = new_randomized_gains[1]
@@ -259,13 +260,13 @@ class LeggedRobot(BaseTask):
     def compute_observations(self):
         """ Computes observations
         """
-        self.privileged_obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel,
-                                    self.base_ang_vel  * self.obs_scales.ang_vel,
-                                    self.projected_gravity,
-                                    self.commands[:, :3] * self.commands_scale,
-                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
-                                    self.dof_vel * self.obs_scales.dof_vel,
-                                    self.actions
+        self.privileged_obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel,  # 3
+                                    self.base_ang_vel  * self.obs_scales.ang_vel,  # 3
+                                    self.projected_gravity,  # 3
+                                    self.commands[:, :3] * self.commands_scale,  # 3
+                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,  # 12
+                                    self.dof_vel * self.obs_scales.dof_vel,   # 12
+                                    self.actions  # 12
                                     ),dim=-1)
         # add perceptive inputs if not blind
         if self.cfg.terrain.measure_heights:
@@ -402,7 +403,7 @@ class LeggedRobot(BaseTask):
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
-
+            随机生成新的运动指令
         Args:
             env_ids (List[int]): Environments ids for which new commands are needed
         """
@@ -413,7 +414,7 @@ class LeggedRobot(BaseTask):
         else:
             self.commands[env_ids, 2] = torch_rand_float(self.command_ranges["ang_vel_yaw"][0], self.command_ranges["ang_vel_yaw"][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
-        # set small commands to zero
+        # set small commands to zero  如果速度大小 小于 0.2，则设置为 0，防止指令过小导致机器人停滞
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
     def _compute_torques(self, actions):
