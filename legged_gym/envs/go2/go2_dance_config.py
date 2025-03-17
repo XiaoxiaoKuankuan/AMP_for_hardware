@@ -295,8 +295,6 @@ class GO2DanceCfg_stand(GO2Cfg):
         class scales(GO2Cfg.rewards.scales):
             torques = -0.0002
             dof_pos_limits = -10.0
-            tracking_lin_vel = 0
-            tracking_ang_vel = 0
             feet_air_time = 0
             feet_contact_forces = -1
             action_rate = -2

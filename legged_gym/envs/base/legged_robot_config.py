@@ -44,6 +44,9 @@ class LeggedRobotCfg(BaseConfig):
         debug = False
         check_contact = True
         num_leg = 4
+        motion_files = 'opti_traj/output_json'
+        motion_name = None
+        frame_duration = 1 / 50
 
     class terrain:
         #  地形参数
@@ -126,55 +129,55 @@ class LeggedRobotCfg(BaseConfig):
         thickness = 0.01
 
     class domain_rand:
-        randomize_friction = True
-        friction_range = [0.4, 2.0]  # [0.4, 2.0]
+        randomize_friction = True  # 随机化地面摩擦系数
+        friction_range = [0.5, 1.25]  # [0.4, 2.0]
 
-        randomize_restitution = True  # True
+        randomize_restitution = True  # True 地面的恢复系数
         restitution_range = [0.0, 0.4]
 
         use_default_friction = True  # 是否使用URDF默认的关节摩擦值
         use_random_friction_value = False  # 否则 使用随机的关节摩擦值或者指定值
         joint_friction_range = [0.0, 0.02]  # 随机值范围[0.01, 1.15]
         joint_friction_value = 0.3  # 指定值
-        randomize_joint_friction = False
-        randomize_joint_friction_each_joint = False
-        joint_friction_factor = [0.8, 1.2]
+        randomize_joint_friction = False  # 是否随机化关节摩擦
+        randomize_joint_friction_each_joint = False  # 是否针对每个关节单独随机化摩擦
+        joint_friction_factor = [0.9, 1.1]
 
         use_default_damping = True  # 是否使用URDF默认的阻尼值
         use_random_damping_value = True  # 否则 使用随机的阻尼值或者指定值
         joint_damping_range = [0.1, 5.]  # 随机值范围
         joint_damping_value = 0.01  # 指定值
-        randomize_joint_damping = False
-        randomize_joint_damping_each_joint = False
-        joint_damping_factor = [0.8, 1.2]
+        randomize_joint_damping = False  # 是否随机化关节阻尼
+        randomize_joint_damping_each_joint = False  # 是否针对每个关节单独随机化阻尼
+        joint_damping_factor = [0.9, 1.1]
 
         use_default_armature = True  # 是否使用URDF默认的转子惯量值
         use_random_armature_value = True  # 否则 使用随机的转子惯量值或者指定值
         joint_armature_range = [0.01, 0.2]  # 随机值范围
         joint_armature_value = [0.0355, 0.0220, 0.1289]  # 指定值 [0.0354, 0.022, 0.0513] 新电机[0.0355, 0.0220, 0.1289]
-        randomize_joint_armature = False
-        randomize_joint_armature_each_joint = False
-        joint_armature_factor = [0.8, 1.2]
+        randomize_joint_armature = False  # 是否随机化转子惯量
+        randomize_joint_armature_each_joint = False  # 是否针对每个关节单独随机化转子惯量
+        joint_armature_factor = [0.9, 1.1]
 
         randomize_motor = True  # PD部分的随机化 等价于PD的随机化 也是所有力矩部分随机化的总开关
-        motor_strength_range = [0.8, 1.2]  # [0.8, 1.2]
+        motor_strength_range = [0.9, 1.1]  # [0.8, 1.2]
 
         randomize_torque = True  # 力矩整体的随机化
-        torque_multiplier_range = [0.8, 1.2]
+        torque_multiplier_range = [0.9, 1.1]
 
         randomize_motor_offset = False  # 位置偏差随机化
         motor_offset_range = [-0.035, 0.035]  # Offset to add to the motor angles
 
         randomize_gains = False
-        stiffness_multiplier_range = [0.8, 1.2]  # Factor [0.8, 1.2] [0.2, 2] [0.5, 1.5]
-        damping_multiplier_range = [0.8, 1.2]
+        stiffness_multiplier_range = [0.9, 1.1]  # Factor [0.8, 1.2] [0.2, 2] [0.5, 1.5]
+        damping_multiplier_range = [0.9, 1.1]
 
         randomize_coulomb_friction = False
         joint_coulomb_range = [0.1, 1.0]
         joint_viscous_range = [0.1, 0.9]
 
         randomize_base_mass = True
-        added_mass_range = [-1., 5.]
+        added_mass_range = [-1., 1.]
 
         randomize_base_com = True
         added_com_range = [-0.2, 0.2]

@@ -3,18 +3,24 @@ import glob
 
 # amp的原始数据
 # MOTION_FILES = glob.glob('datasets/mocap_motions/*')
-# 警犬的数据
-MOTION_FILES = glob.glob('datasets/policedog_mocap/*')
+# amp的原始数据
+MOTION_FILES = glob.glob('datasets/mocap_motions/*')
 
 class GO2AMPCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
-        num_envs = 3500
+        num_envs = 4096
         include_history_steps = None  # Number of steps of history to include.
-        num_observations = 42
-        num_privileged_obs = 48
-        reference_state_initialization = True
-        reference_state_initialization_prob = 0.85
-        amp_motion_files = MOTION_FILES
+        num_observations = 42  # 3 + 3 + 12 + 12+ 12
+        num_privileged_obs = 48  # 96  # 3 + 3 + 3 + 12 + 12 +12 + 3 + 48
+        # reference_state_initialization = True
+        # reference_state_initialization_prob = 0.85
+        amp_motion_files = MOTION_FILES  # AMP参考数据
+        motion_files = 'opti_traj/output_json'  # 我们的参考数据
+        motion_name = None
+        frame_duration = 1 / 50
+        RSI = 1  # 参考状态初始化
+        num_actions = 12
+
     class init_state(LeggedRobotCfg.init_state):
         pos = [0.0, 0.0, 0.42]  # x,y,z [m]
         default_joint_angles = {  # = target angles [rad] when action = 0.0
@@ -45,9 +51,7 @@ class GO2AMPCfg(LeggedRobotCfg):
         # 这个意思是经过decimation个仿真周期之后控制策略才会进行一次控制
         decimation = 4
 
-    class terrain( LeggedRobotCfg.terrain ):
-        mesh_type = 'plane'
-        measure_heights = False
+
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
         name = "go2"
@@ -56,28 +60,8 @@ class GO2AMPCfg(LeggedRobotCfg):
         terminate_after_contacts_on = ["base"]
         self_collisions = 0  # 1 to disable, 0 to enable...bitwise filter
 
-    class domain_rand:
-        randomize_friction = True
-        friction_range = [0.25, 1.75]
-        randomize_base_mass = True
-        added_mass_range = [-1., 1.]
-        push_robots = True
-        push_interval_s = 15
-        max_push_vel_xy = 1.0
-        randomize_gains = True
-        stiffness_multiplier_range = [0.9, 1.1]
-        damping_multiplier_range = [0.9, 1.1]
 
-    class noise:
-        add_noise = True
-        noise_level = 1.0 # scales other values
-        class noise_scales:
-            dof_pos = 0.03
-            dof_vel = 1.5
-            lin_vel = 0.1
-            ang_vel = 0.3
-            gravity = 0.05
-            height_measurements = 0.1
+
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.9
         base_height_target = 0.25
@@ -116,7 +100,7 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
     runner_class_name = 'AMPOnPolicyRunner'
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01
-        amp_replay_buffer_size = 50000
+        amp_replay_buffer_size = 100000  # 1000000
         num_learning_epochs = 5
         num_mini_batches = 4
 
@@ -125,13 +109,13 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
         experiment_name = 'go2_amp_example'
         algorithm_class_name = 'AMPPPO'
         policy_class_name = 'ActorCritic'
-        max_iterations = 14000 # number of policy updates
+        max_iterations = 50000 # number of policy updates
 
-        amp_reward_coef = 2.0
+        amp_reward_coef = 2.0 # AMP 奖励系数
         amp_motion_files = MOTION_FILES
-        amp_num_preload_transitions = 20000
-        amp_task_reward_lerp = 0.3
-        amp_discr_hidden_dims = [1024, 512]
+        amp_num_preload_transitions = 200000  # AMP 预加载的轨迹转换数量（200 万个）
+        amp_task_reward_lerp = 0.3  # 任务奖励与 AMP 奖励的混合系数
+        amp_discr_hidden_dims = [1024, 512]  # AMP 判别器（Discriminator）隐藏层维度
 
         min_normalized_std = [0.05, 0.02, 0.05] * 4
 
