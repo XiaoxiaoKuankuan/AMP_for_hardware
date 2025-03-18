@@ -2,9 +2,9 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 import glob
 
 # amp的原始数据
-# MOTION_FILES = glob.glob('datasets/mocap_motions/*')
-# amp的原始数据
 MOTION_FILES = glob.glob('datasets/mocap_motions/*')
+# amp的原始数据
+AMP_MOTION_FILES = glob.glob('dopti_traj/output_json/*')
 
 class GO2AMPCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
@@ -14,12 +14,12 @@ class GO2AMPCfg(LeggedRobotCfg):
         num_privileged_obs = 48  # 96  # 3 + 3 + 3 + 12 + 12 +12 + 3 + 48
         # reference_state_initialization = True
         # reference_state_initialization_prob = 0.85
-        amp_motion_files = MOTION_FILES  # AMP参考数据
+        # amp_motion_files = MOTION_FILES  # AMP参考数据
         motion_files = 'opti_traj/output_json'  # 我们的参考数据
-        motion_name = None
         frame_duration = 1 / 50
         RSI = 1  # 参考状态初始化
         num_actions = 12
+        motion_name = 'swing'
 
     class init_state(LeggedRobotCfg.init_state):
         pos = [0.0, 0.0, 0.42]  # x,y,z [m]
@@ -67,21 +67,26 @@ class GO2AMPCfg(LeggedRobotCfg):
         base_height_target = 0.25
         class scales( LeggedRobotCfg.rewards.scales ):
             termination = 0.0
-            tracking_lin_vel = 1.5 * 1. / (.005 * 6)
-            tracking_ang_vel = 0.5 * 1. / (.005 * 6)
+            tracking_lin_vel = 0
+            tracking_ang_vel = 0
             lin_vel_z = 0.0
             ang_vel_xy = 0.0
             orientation = 0.0
-            torques = 0.0
+            torques = -0.0001
             dof_vel = 0.0
             dof_acc = 0.0
             base_height = 0.0
-            feet_air_time =  0.0
+            feet_air_time = 0.0
             collision = 0.0
             feet_stumble = 0.0
             action_rate = 0.0
             stand_still = 0.0
-            dof_pos_limits = 0.0
+            dof_pos_limits = -10.0
+
+            track_root_height = 0.5
+            track_root_rot = 2.
+            track_toe_pos = 1.
+            tracking_yaw = 2.
 
     class commands:
         curriculum = False
@@ -112,11 +117,13 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
         max_iterations = 50000 # number of policy updates
 
         amp_reward_coef = 2.0 # AMP 奖励系数
-        amp_motion_files = MOTION_FILES
+        motion_files = 'opti_traj/output_json'  # 我们的参考数据
+        amp_motion_files = motion_files
         amp_num_preload_transitions = 200000  # AMP 预加载的轨迹转换数量（200 万个）
         amp_task_reward_lerp = 0.3  # 任务奖励与 AMP 奖励的混合系数
         amp_discr_hidden_dims = [1024, 512]  # AMP 判别器（Discriminator）隐藏层维度
 
         min_normalized_std = [0.05, 0.02, 0.05] * 4
+
 
 

@@ -39,7 +39,7 @@ class LeggedRobotCfg(BaseConfig):
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
-        reference_state_initialization = False # initialize state from reference data
+        include_history_steps = None
 
         debug = False
         check_contact = True
@@ -310,7 +310,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 15000 # number of policy updates
+        max_iterations = 150000 # number of policy updates
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

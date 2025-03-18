@@ -80,7 +80,7 @@ class motionLoader:
             motion_data = self.reorder_from_pybullet_to_isaac(motion_data)  #
 
             # Remove first 7 observation dimensions and last 12 foot_vel (root_pos and root_orn and foot_vel). (70, 42)
-            # todo: 这里还不知道取出来做什么 self.trajectories的用途不明
+
             self.trajectories.append(torch.tensor(
                 motion_data[
                 :,
@@ -116,7 +116,8 @@ class motionLoader:
                         motion_data[:, :self.JOINT_VEL_END_IDX],
                         dtype=torch.float32, device=device))
                     self.trajectory_idxs.append(i)
-                    self.trajectory_weights.append(1)
+                    # self.trajectory_weights.append(float(motion_json["MotionWeight"]))
+                    self.trajectory_weights.append(1)  # 文件里面可以加轨迹权重  这里都赋1
                     frame_duration = float(motion_json["frame_duration"])
                     self.trajectory_frame_durations.append(frame_duration)
                     traj_len = (motion_data.shape[0] - 1) * frame_duration
@@ -138,18 +139,6 @@ class motionLoader:
             # 根据采样的时间，利用差值 获取当前以及下一时刻的轨迹
             self.preloaded_s = self.get_full_frame_at_time_batch(traj_idxs, times)  # (len, 49)
             self.preloaded_s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)  # (len, 49)
-
-            root_state = torch.cat([self.preloaded_s[:, :7], self.preloaded_s[:, 31:34], self.preloaded_s[:, 34:37]], dim=-1)
-            dof_pos = self.preloaded_s[:, 7:19]
-            dof_vel = self.preloaded_s[:, 37:49]
-            key_body_pos = self.preloaded_s[:, 19:31].reshape(-1, 4, 3)
-            self.preloaded_s = build_amp_observations(root_state, dof_pos, dof_vel, key_body_pos)
-
-            root_state = torch.cat([self.preloaded_s_next[:, :7], self.preloaded_s_next[:, 31:34], self.preloaded_s_next[:, 34:37]], dim=-1)
-            dof_pos = self.preloaded_s_next[:, 7:19]
-            dof_vel = self.preloaded_s_next[:, 37:49]
-            key_body_pos = self.preloaded_s_next[:, 19:31].reshape(-1, 4, 3)
-            self.preloaded_s_next = build_amp_observations(root_state, dof_pos, dof_vel, key_body_pos)
 
             print(f'Finished preloading')
 
@@ -335,8 +324,8 @@ class motionLoader:
         blend_joints_vel = self.slerp(joint_vel_0, joint_vel_1, blend)
 
         return torch.cat([
-            blend_root_pos, blend_root_rot, blend_joints, blend_tar_toe_pos,
-            blend_linear_vel, blend_angular_vel, blend_joints_vel])
+            blend_root_pos, blend_root_rot, blend_linear_vel, blend_angular_vel, blend_tar_toe_pos,
+            blend_joints, blend_joints_vel])  # # TODO 需不需要改顺序
 
     def feed_forward_generator(self, num_mini_batch, mini_batch_size):
         """Generates a batch of AMP transitions."""
@@ -344,13 +333,10 @@ class motionLoader:
             if self.preload_transitions:  # True
                 idxs = np.random.choice(
                     self.preloaded_s.shape[0], size=mini_batch_size)
-                s = self.preloaded_s[idxs, :]
-                # s = self.preloaded_s[idxs, self.JOINT_POSE_START_IDX:self.JOINT_VEL_END_IDX]
-                # s = torch.cat([
-                #     s,
-                #     self.preloaded_s[idxs, self.ROOT_POS_START_IDX + 2:self.ROOT_POS_START_IDX + 3]], dim=-1)
-                s_next = self.preloaded_s_next[idxs, :]
-                # s_next = self.preloaded_s_next[idxs, self.JOINT_POSE_START_IDX:self.JOINT_VEL_END_IDX]
+                # s = self.preloaded_s[idxs, :]
+                s = self.preloaded_s[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
+
+                s_next = self.preloaded_s_next[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
                 # s_next = torch.cat([
                 #     s_next,
                 #     self.preloaded_s_next[idxs, self.ROOT_POS_START_IDX + 2:self.ROOT_POS_START_IDX + 3]], dim=-1)
@@ -371,7 +357,7 @@ class motionLoader:
     @property
     def observation_dim(self):
         """Size of AMP observations."""
-        return self.trajectories_full[0].shape[1] - 3
+        return self.trajectories[0].shape[1]
 
     @property
     def num_motions(self):
@@ -420,49 +406,5 @@ class motionLoader:
         return poses[:, self.JOINT_VEL_START_IDX:self.JOINT_VEL_END_IDX]  
 
 
-
-# @torch.jit.script
-def build_amp_observations(root_states, dof_pos, dof_vel, key_body_pos, local_root_obs=False):
-    # type: (Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
-    root_pos = root_states[:, 0:3]
-    root_rot = root_states[:, 3:7]
-    root_vel = root_states[:, 7:10]
-    root_ang_vel = root_states[:, 10:13]
-
-    root_h = root_pos[:, 2:3]
-    heading_rot = calc_heading_quat_inv(root_rot)
-
-    if (local_root_obs):
-        root_rot_obs = quat_mul(heading_rot, root_rot)
-    else:
-        root_rot_obs = root_rot
-    root_rot_obs = quat_to_tan_norm(root_rot_obs)
-
-    root_euler = torch.vstack(quaternion2rpy_torch(root_rot)).T
-
-    # local_root_vel = my_quat_rotate(heading_rot, root_vel)
-    # local_root_ang_vel = my_quat_rotate(heading_rot, root_ang_vel)
-
-    local_root_vel = quat_rotate_inverse(root_rot, root_vel)  # (2048, 3)
-    local_root_ang_vel = quat_rotate_inverse(root_rot, root_ang_vel)  # (2048, 3)
-
-    root_pos_expand = root_pos.unsqueeze(-2)
-    local_key_body_pos = key_body_pos - root_pos_expand
-
-    heading_rot_expand = heading_rot.unsqueeze(-2)
-    heading_rot_expand = heading_rot_expand.repeat((1, local_key_body_pos.shape[1], 1))
-    flat_end_pos = local_key_body_pos.view(local_key_body_pos.shape[0] * local_key_body_pos.shape[1],
-                                           local_key_body_pos.shape[2])
-    flat_heading_rot = heading_rot_expand.view(heading_rot_expand.shape[0] * heading_rot_expand.shape[1],
-                                               heading_rot_expand.shape[2])
-    local_end_pos = my_quat_rotate(flat_heading_rot, flat_end_pos)
-    flat_local_key_pos = local_end_pos.view(local_key_body_pos.shape[0],
-                                            local_key_body_pos.shape[1] * local_key_body_pos.shape[2])
-
-    # dof_obs = dof_to_obs(dof_pos)
-
-    obs = torch.cat((root_h, root_rot_obs[:, -3:], local_root_vel, local_root_ang_vel, dof_pos, dof_vel, flat_local_key_pos),
-                    dim=-1)
-    return obs
 
 

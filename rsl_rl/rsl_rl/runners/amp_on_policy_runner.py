@@ -41,7 +41,8 @@ from rsl_rl.algorithms import AMPPPO, PPO
 from rsl_rl.modules import ActorCritic, ActorCriticRecurrent
 from rsl_rl.env import VecEnv
 from rsl_rl.algorithms.amp_discriminator import AMPDiscriminator
-from rsl_rl.datasets.motion_loader import AMPLoader
+# from rsl_rl.datasets.motion_loader import AMPLoader
+from legged_gym.motion_loader.motion_loader import motionLoader
 from rsl_rl.utils.utils import Normalizer
 
 class AMPOnPolicyRunner:
@@ -71,10 +72,15 @@ class AMPOnPolicyRunner:
                                                         num_actions=self.env.num_actions,
                                                         **self.policy_cfg).to(self.device)
 
-        amp_data = AMPLoader(
+        amp_data = motionLoader(
             device, time_between_frames=self.env.dt, preload_transitions=True,
             num_preload_transitions=train_cfg['runner']['amp_num_preload_transitions'],
-            motion_files=self.cfg["amp_motion_files"])
+            motion_files=self.cfg["amp_motion_files"])  # AMP参考数据加载 TODO
+
+        # self.motion_loader = motionLoader(motion_files=self.cfg.env.motion_files, device=self.device,
+        #                                   time_between_frames=self.dt,
+        #                                   frame_duration=self.cfg.env.frame_duration)
+
         amp_normalizer = Normalizer(amp_data.observation_dim)
         discriminator = AMPDiscriminator(
             amp_data.observation_dim * 2,
