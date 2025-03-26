@@ -345,10 +345,10 @@ class motionLoader:
             if self.preload_transitions:  # True
                 idxs = np.random.choice(
                     self.preloaded_s.shape[0], size=mini_batch_size)
-                # s = self.preloaded_s[idxs, :]
-                s = self.preloaded_s[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
-
-                s_next = self.preloaded_s_next[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
+                s = self.preloaded_s[idxs, :]
+                # s = self.preloaded_s[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
+                s_next = self.preloaded_s_next[idxs, :]
+                # s_next = self.preloaded_s_next[idxs, self.LINEAR_VEL_START_IDX:self.JOINT_VEL_END_IDX]
                 # s_next = torch.cat([
                 #     s_next,
                 #     self.preloaded_s_next[idxs, self.ROOT_POS_START_IDX + 2:self.ROOT_POS_START_IDX + 3]], dim=-1)
@@ -428,17 +428,22 @@ class motionLoader:
         base_lin_ang = quat_rotate_inverse(root_rot, root_ang_vel)
 
         # 计算每个足端相对于机身坐标系的位置
-        local_foot_pos = torch.zeros_like(foot_pos)
-        local_foot_pos[:, :3] = quat_rotate_inverse(root_rot, foot_pos[:, :3] - root_pos)
-        local_foot_pos[:, 3:6] = quat_rotate_inverse(root_rot, foot_pos[:, 3:6] - root_pos)
-        local_foot_pos[:, 6:9] = quat_rotate_inverse(root_rot, foot_pos[:, 6:9] - root_pos)
-        local_foot_pos[:, 9:12] = quat_rotate_inverse(root_rot, foot_pos[:, 9:12] - root_pos)
+        # 计算每条腿的位置
+        local_foot_pos = torch.zeros_like(foot_pos)  # (batch_size, 4, 3)
 
-        flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)
+        for i in range(4):  # 对每一条腿分别处理
+            foot_pos_leg = foot_pos[:, i, :]  # (batch_size, 3) 当前腿的足端位置
+            foot_pos_relative = foot_pos_leg - root_pos  # (batch_size, 3) 当前腿相对于机身的位置
+
+            # 使用 quat_rotate_inverse 将 foot_pos_relative 转换到机身坐标系
+            local_foot_pos[:, i, :] = quat_rotate_inverse(root_rot, foot_pos_relative)  # (batch_size, 3)
+
+        # 拼接最终的观察量
+        flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)  # 展平为 (batch_size, 12)
 
         obs = torch.cat(
-            (base_lin_vel, base_lin_ang, flat_local_foot_pos, dof_pos, dof_vel),
-            dim=-1)
+                (base_lin_vel, base_lin_ang, flat_local_foot_pos, dof_pos, dof_vel),
+                dim=-1)
         return obs
 
 
