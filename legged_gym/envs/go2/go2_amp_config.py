@@ -4,7 +4,7 @@ import glob
 # amp的原始数据
 MOTION_FILES = glob.glob('datasets/mocap_motions/*')
 # amp的原始数据
-AMP_MOTION_FILES = glob.glob('dopti_traj/output_json/*')
+AMP_MOTION_FILES = glob.glob('opti_traj/output_json/*')
 
 class GO2AMPCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
@@ -72,7 +72,7 @@ class GO2AMPCfg(LeggedRobotCfg):
             lin_vel_z = 0.0
             ang_vel_xy = 0.0
             orientation = 0.0
-            torques = -0.0001
+            torques = -0.0002
             dof_vel = 0.0
             dof_acc = 0.0
             base_height = 0.0
@@ -83,29 +83,12 @@ class GO2AMPCfg(LeggedRobotCfg):
             stand_still = 0.0
             dof_pos_limits = -10.0
 
-            track_root_height = 0.5
-            track_root_rot = 2.
-            track_toe_pos = 1.
-            tracking_yaw = 2.
-
-    class commands:
-        curriculum = False
-        max_curriculum = 1.
-        num_commands = 4 # default: lin_vel_x, lin_vel_y, ang_vel_yaw, heading (in heading mode ang_vel_yaw is recomputed from heading error)
-        resampling_time = 10. # time before command are changed[s]
-        heading_command = False # if true: compute ang vel command from heading error
-        class ranges:
-            lin_vel_x = [-1.0, 2.0] # min max [m/s]
-            lin_vel_y = [-0.3, 0.3]   # min max [m/s]
-            ang_vel_yaw = [-1.57, 1.57]    # min max [rad/s]
-            heading = [-3.14, 3.14]
-
 
 class GO2AMPCfgPPO(LeggedRobotCfgPPO):
     runner_class_name = 'AMPOnPolicyRunner'
     class algorithm( LeggedRobotCfgPPO.algorithm ):
         entropy_coef = 0.01
-        amp_replay_buffer_size = 100000  # 1000000
+        amp_replay_buffer_size = 1000000  # 1000000
         num_learning_epochs = 5
         num_mini_batches = 4
 
@@ -119,11 +102,37 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
         amp_reward_coef = 2.0 # AMP 奖励系数
         motion_files = 'opti_traj/output_json'  # 我们的参考数据
         amp_motion_files = motion_files
-        amp_num_preload_transitions = 200000  # AMP 预加载的轨迹转换数量（200 万个）
-        amp_task_reward_lerp = 0.3  # 任务奖励与 AMP 奖励的混合系数
+        amp_num_preload_transitions = 2000000  # AMP 预加载的轨迹转换数量（200 万个）
+        amp_task_reward_lerp = 1  # 任务奖励与 AMP 奖励的混合系数  0.3
         amp_discr_hidden_dims = [1024, 512]  # AMP 判别器（Discriminator）隐藏层维度
 
         min_normalized_std = [0.05, 0.02, 0.05] * 4
+        resume_path = "logs/go2_amp_example/Mar24_10-58-43_/model_5500.pt"
 
 
+#-----------------------------beat----------------------------------------------------
+class GO2AMPCfg_beat(GO2AMPCfg):
+    class rewards(GO2AMPCfg.rewards):
+
+        class scales(GO2AMPCfg.rewards.scales):
+            torques = -0.0002
+            dof_pos_limits = -10.0
+            tracking_lin_vel = 0
+            tracking_ang_vel = 0
+            feet_air_time = 0
+            track_root_pos = 1
+            track_root_rot = 2.
+            track_lin_vel_ref = 0
+            track_ang_vel_ref = 0
+            track_dof_pos = 0
+            track_dof_vel = 0
+            track_toe_pos = 5.
+
+    class env(GO2AMPCfg.env):
+        motion_name = 'beat'
+
+class GO2AMPCfgPPO_beat(GO2AMPCfgPPO):
+    class runner(GO2AMPCfgPPO.runner):
+        experiment_name = 'go2_amp_beat'
+        resume_path = "logs/go2_amp_beat/Mar26_18-39-47_/model_1000.pt"
 

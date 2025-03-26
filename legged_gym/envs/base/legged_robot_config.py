@@ -205,6 +205,8 @@ class LeggedRobotCfg(BaseConfig):
         RSI_rand = False  # 参考轨迹基础上添加随机化
         RSI_traj_rand = True  # 初始轨迹随机化
 
+        tempo = [40, 160]
+
     class rewards:
         class scales:
             termination = -0.0
@@ -239,6 +241,10 @@ class LeggedRobotCfg(BaseConfig):
             dof_vel = 0.05
             quat = 1.
             height_measurements = 5.0
+            next_beat_time_scale = 0.1
+            # right_foot_z_pos_scale = 1
+            time_to_next_scale = 0.5
+            beat_interval_scale = 0.1
         clip_observations = 100.
         clip_actions = 2.5
 
@@ -313,7 +319,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         max_iterations = 150000 # number of policy updates
 
         # logging
-        save_interval = 100 # check for potential saves every this many iterations
+        save_interval = 500 # check for potential saves every this many iterations
         experiment_name = 'test'
         run_name = ''
         # load and resume

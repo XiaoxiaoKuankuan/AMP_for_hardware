@@ -313,7 +313,7 @@ class AMPLoader:
             blend_linear_vel, blend_angular_vel, blend_joints_vel])
 
     def feed_forward_generator(self, num_mini_batch, mini_batch_size):
-        """Generates a batch of AMP transitions."""
+        """Generates a batch of AMP transitions."""  # TODO 数据用不用改
         for _ in range(num_mini_batch):
             if self.preload_transitions:
                 idxs = np.random.choice(
@@ -343,7 +343,7 @@ class AMPLoader:
     @property
     def observation_dim(self):
         """Size of AMP observations."""
-        return self.trajectories[0].shape[1] + 1
+        return self.trajectories[0].shape[1]
 
     @property
     def num_motions(self):

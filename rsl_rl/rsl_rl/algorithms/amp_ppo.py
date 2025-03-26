@@ -235,7 +235,7 @@ class AMPPPO:
                 grad_pen_loss = self.discriminator.compute_grad_pen(
                     *sample_amp_expert, lambda_=10)
 
-                # Compute total loss.
+                # Compute total loss.策略损失 + 值函数损失 - 熵正则项 + AMP 损失 + 梯度惩罚
                 loss = (
                     surrogate_loss +
                     self.value_loss_coef * value_loss -

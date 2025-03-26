@@ -140,6 +140,18 @@ class motionLoader:
             self.preloaded_s = self.get_full_frame_at_time_batch(traj_idxs, times)  # (len, 49)
             self.preloaded_s_next = self.get_full_frame_at_time_batch(traj_idxs, times + self.time_between_frames)  # (len, 49)
 
+            root_state = self.preloaded_s[:, :13]
+            dof_pos = self.preloaded_s[:, 25:37]
+            dof_vel = self.preloaded_s[:, 37:49]
+            foot_pos = self.preloaded_s[:, 13:25].reshape(-1, 4, 3)
+            self.preloaded_s = self.build_amp_observations(root_state, dof_pos, dof_vel, foot_pos)
+
+            root_state = self.preloaded_s_next[:, :13]
+            dof_pos = self.preloaded_s_next[:, 25:37]
+            dof_vel = self.preloaded_s_next[:, 37:49]
+            foot_pos = self.preloaded_s_next[:, 19:31].reshape(-1, 4, 3)
+            self.preloaded_s_next = self.build_amp_observations(root_state, dof_pos, dof_vel, foot_pos)
+
             print(f'Finished preloading')
 
 
@@ -276,7 +288,7 @@ class motionLoader:
 
     def get_full_frame(self):
         """Returns random full frame."""
-        traj_idx = self.trajectory_idxs
+        traj_idx = self.weighted_traj_idx_sample()
         sampled_time = self.traj_time_sample(traj_idx)
         return self.get_full_frame_at_time(traj_idx, sampled_time)
 
@@ -403,8 +415,30 @@ class motionLoader:
         return pose[self.JOINT_VEL_START_IDX:self.JOINT_VEL_END_IDX]
 
     def get_joint_vel_batch(self,poses):
-        return poses[:, self.JOINT_VEL_START_IDX:self.JOINT_VEL_END_IDX]  
+        return poses[:, self.JOINT_VEL_START_IDX:self.JOINT_VEL_END_IDX]
 
+    def build_amp_observations(self, root_states, dof_pos, dof_vel, foot_pos):
 
+        root_pos = root_states[:, 0:3]
+        root_rot = root_states[:, 3:7]
+        root_vel = root_states[:, 7:10]
+        root_ang_vel = root_states[:, 10:13]
+        # heading_rot = calc_heading_quat_inv(root_rot)  # 计算朝向旋转的逆四元数
+        base_lin_vel = quat_rotate_inverse(root_rot, root_vel)
+        base_lin_ang = quat_rotate_inverse(root_rot, root_ang_vel)
+
+        # 计算每个足端相对于机身坐标系的位置
+        local_foot_pos = torch.zeros_like(foot_pos)
+        local_foot_pos[:, :3] = quat_rotate_inverse(root_rot, foot_pos[:, :3] - root_pos)
+        local_foot_pos[:, 3:6] = quat_rotate_inverse(root_rot, foot_pos[:, 3:6] - root_pos)
+        local_foot_pos[:, 6:9] = quat_rotate_inverse(root_rot, foot_pos[:, 6:9] - root_pos)
+        local_foot_pos[:, 9:12] = quat_rotate_inverse(root_rot, foot_pos[:, 9:12] - root_pos)
+
+        flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)
+
+        obs = torch.cat(
+            (base_lin_vel, base_lin_ang, flat_local_foot_pos, dof_pos, dof_vel),
+            dim=-1)
+        return obs
 
 
