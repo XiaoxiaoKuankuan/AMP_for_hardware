@@ -71,7 +71,7 @@ def play(args):
 
     logger = Logger(env.dt)
     robot_index = 0  # which robot is used for logging
-    joint_index = 1  # which joint is used for logging
+    joint_index = 3  # which joint is used for logging
     stop_state_log = 100  # number of steps before plotting states
     stop_rew_log = env.max_episode_length + 1  # number of steps before print average episode rewards
     camera_position = np.array(env_cfg.viewer.pos, dtype=np.float64)
@@ -106,7 +106,24 @@ def play(args):
                     'base_vel_y': env.base_lin_vel[robot_index, 1].item(),
                     'base_vel_z': env.base_lin_vel[robot_index, 2].item(),
                     'base_vel_yaw': env.base_ang_vel[robot_index, 2].item(),
-                    'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy()
+                    'contact_forces_z': env.contact_forces[robot_index, env.feet_indices, 2].cpu().numpy(),
+                    'foot_pos_0_x': env.toe_pos_body[robot_index, 0].item(),
+                    'foot_pos_0_y': env.toe_pos_body[robot_index, 1].item(),
+                    'foot_pos_0_z': env.toe_pos_body[robot_index, 2].item(),
+                    'foot_pos_1_x': env.toe_pos_body[robot_index, 3].item(),
+                    'foot_pos_1_y': env.toe_pos_body[robot_index, 4].item(),
+                    'foot_pos_1_z': env.toe_pos_body[robot_index, 5].item(),
+                    'foot_pos_2_x': env.toe_pos_body[robot_index, 6].item(),
+                    'foot_pos_2_y': env.toe_pos_body[robot_index, 7].item(),
+                    'foot_pos_2_z': env.toe_pos_body[robot_index, 8].item(),
+                    'foot_pos_3_x': env.toe_pos_body[robot_index, 9].item(),
+                    'foot_pos_3_y': env.toe_pos_body[robot_index, 10].item(),
+                    'foot_pos_3_z': env.toe_pos_body[robot_index, 11].item(),
+                    'base_pos_x': env.base_pos[robot_index, 0].item(),
+                    'base_pos_y': env.base_pos[robot_index, 1].item(),
+                    'base_pos_z': env.base_pos[robot_index, 2].item(),
+                    'ref_foot_positions': env.ref_toe_pos[robot_index, 5].cpu().numpy(),
+                    'ref_dof_RL': env.ref_dof_pos[robot_index, 5].cpu().numpy(),
                 }
             )
         elif i == stop_state_log:
