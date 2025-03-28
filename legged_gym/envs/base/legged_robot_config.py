@@ -81,9 +81,9 @@ class LeggedRobotCfg(BaseConfig):
         resampling_time = 10. # time before command are changed[s]  每 10 秒 更新一次指令
         heading_command = True # if true: compute ang vel command from heading error 如果 True，那么角速度命令（ang_vel_yaw）不是直接设定的，而是从朝向误差计算得出
         class ranges:
-            lin_vel_x = [-1.0, 1.0] # min max [m/s]
-            lin_vel_y = [-1.0, 1.0]   # min max [m/s]
-            ang_vel_yaw = [-1, 1]    # min max [rad/s]
+            lin_vel_x = [0, 1.0] # min max [m/s]
+            lin_vel_y = [0, 0]   # min max [m/s]
+            ang_vel_yaw = [0, 0]    # min max [rad/s]
             heading = [-3.14, 3.14]
 
     class init_state:
@@ -319,7 +319,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         max_iterations = 150000 # number of policy updates
 
         # logging
-        save_interval = 500 # check for potential saves every this many iterations
+        save_interval = 250 # check for potential saves every this many iterations
         experiment_name = 'test'
         run_name = ''
         # load and resume
