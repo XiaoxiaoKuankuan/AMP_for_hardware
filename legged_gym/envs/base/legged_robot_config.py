@@ -245,6 +245,8 @@ class LeggedRobotCfg(BaseConfig):
             # right_foot_z_pos_scale = 1
             time_to_next_scale = 0.5
             beat_interval_scale = 0.1
+            tempo_scale = 0.1
+            beat_time_expanded = 0.25
         clip_observations = 100.
         clip_actions = 2.5
 

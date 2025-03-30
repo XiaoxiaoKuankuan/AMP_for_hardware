@@ -72,14 +72,14 @@ class Logger:
         log= self.state_log
         # plot joint targets and measured positions
         a = axs[1, 0]
-        if log["base_pos_x"] != []: a.plot(time, log["base_pos_x"], label='base_pos_x', linewidth=5)
-        if log["base_pos_y"] != []: a.plot(time, log["base_pos_y"], label='base_pos_y', linewidth=5)
-        if log["base_pos_z"] != []: a.plot(time, log["base_pos_z"], label='base_pos_z', linewidth=5)
+        if log["base_pos_x"] != []: a.plot(time, log["base_pos_x"], label='base_pos_x')
+        if log["base_pos_y"] != []: a.plot(time, log["base_pos_y"], label='base_pos_y')
+        if log["base_pos_z"] != []: a.plot(time, log["base_pos_z"], label='base_pos_z')
         a.set(xlabel='time [s]', ylabel='position [m]', title='root position')
         a.legend()
         # plot joint velocity
         a = axs[1, 1]
-        a.plot(time, log["foot_pos_1_z"], label='foot_RF', linewidth=5)
+        a.plot(time, log["foot_pos_1_z"], label='foot_RF')
         a.set(xlabel='time [s]', ylabel='z position [m]', title='RL foot position')
         a.legend()
         # plot base vel x

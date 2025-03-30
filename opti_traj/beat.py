@@ -45,7 +45,7 @@ dof_vel = np.zeros((num_row-1, 12))  # 关节速度
 go2 = utils.QuadrupedRobot()
 
 # 默认足端初始位置（质心系）
-toe_pos_init = [0.178, -0.173, -0.3, 0.178, 0.173, -0.3, -0.178, -0.173, -0.3, -0.178, 0.173, -0.3]
+toe_pos_init = [0.178, -0.173, -0.28, 0.178, 0.173, -0.28, -0.178, -0.173, -0.28, -0.178, 0.173, -0.28]
 toe_pos[:] = toe_pos_init
 
 # 生成足端轨迹
@@ -65,7 +65,7 @@ def get_pos_beat(num_frames, tend):
 toe_pos[:, 0:3] += get_pos_beat(num_row, num_row/fps)
 
 # 质心轨迹
-root_pos[:, 2] = 0.3
+root_pos[:, 2] = 0.28
 root_rot[:, 3] = 1
 
 # 计算关节角度
