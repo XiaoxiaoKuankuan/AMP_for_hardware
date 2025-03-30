@@ -81,7 +81,7 @@ class LeggedRobotCfg(BaseConfig):
         resampling_time = 10. # time before command are changed[s]  每 10 秒 更新一次指令
         heading_command = True # if true: compute ang vel command from heading error 如果 True，那么角速度命令（ang_vel_yaw）不是直接设定的，而是从朝向误差计算得出
         class ranges:
-            lin_vel_x = [0, 1.0] # min max [m/s]
+            lin_vel_x = [0.5, 0.7] # min max [m/s]
             lin_vel_y = [0, 0]   # min max [m/s]
             ang_vel_yaw = [0, 0]    # min max [rad/s]
             heading = [-3.14, 3.14]
@@ -205,7 +205,7 @@ class LeggedRobotCfg(BaseConfig):
         RSI_rand = False  # 参考轨迹基础上添加随机化
         RSI_traj_rand = True  # 初始轨迹随机化
 
-        tempo = [40, 160]
+        tempo = [50, 70]
 
     class rewards:
         class scales:

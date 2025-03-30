@@ -57,7 +57,7 @@ plt.plot(t, phase[:,3], linewidth=2)
 # plt.show()
 
 # 足端位置
-vx = 0.7 #频率变慢了，前进的速度需要改一改
+vx = 0.6 #频率变慢了，前进的速度需要改一改
 ax = vx*cpg.T*cpg.beta
 ay = 0
 az = 0.08
@@ -120,6 +120,23 @@ trot_ref[:, 13:25] = toe_pos[:num_row-1,:]
 trot_ref[:, 25:37] = dof_pos[:num_row-1,:]
 trot_ref[:, 37:49] = dof_vel
 
+
+plt.figure(figsize=(10, 6))
+
+# 绘制每个足的z方向轨迹随时间的变化
+for i in range(4):
+    plt.plot(t, toe_pos[:, 3*i+2], label=f'Foot {i+1} (Z)')
+
+# 添加标签和标题
+plt.xlabel('Time (s)')
+plt.ylabel('Z Position (m)')
+plt.title('Foot Z Direction Trajectories Over Time')
+plt.legend()
+
+# 显示图形
+plt.show()
+
+
 # 导出txt
 outfile = 'output/'+gait+'.txt'
 np.savetxt(outfile, trot_ref, delimiter=',')
@@ -129,7 +146,7 @@ json_data = {
     'frame_duration': 1 / fps,
     'frames': trot_ref.tolist()
 }
-with open('output_json/'+ gait +'.json', 'w') as f:
+with open('output_json/'+ gait + '6' + '.json', 'w') as f:
     json.dump(json_data, f, indent=4)
 with open('go2ST/'+ gait +'.json', 'w') as f:
     json.dump(json_data, f, indent=4)

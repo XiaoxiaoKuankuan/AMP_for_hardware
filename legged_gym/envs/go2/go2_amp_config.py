@@ -10,8 +10,8 @@ class GO2AMPCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
         num_envs = 4096
         include_history_steps = None  # Number of steps of history to include.
-        num_observations = 42  # 3 + 3 + 12 + 12+ 12
-        num_privileged_obs = 48  # 96  # 3 + 3 + 3 + 12 + 12 +12 + 3 + 48
+        num_observations = 45  # 3 + 3 + 12 + 12+ 12
+        num_privileged_obs = 51    # 48 # 96  # 3 + 3 + 3 + 12 + 12 +12 + 3 + 48
         # reference_state_initialization = True
         # reference_state_initialization_prob = 0.85
         # amp_motion_files = MOTION_FILES  # AMP参考数据
@@ -73,14 +73,6 @@ class GO2AMPCfg(LeggedRobotCfg):
             ang_vel_xy = 0.0
             orientation = 0.0
             torques = -0.0002
-            dof_vel = 0.0
-            dof_acc = 0.0
-            base_height = 0.0
-            feet_air_time = 0.0
-            collision = 0.0
-            feet_stumble = 0.0
-            action_rate = 0.0
-            stand_still = 0.0
             dof_pos_limits = -10.0
 
 
@@ -103,11 +95,11 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
         motion_files = 'opti_traj/output_json'  # 我们的参考数据
         amp_motion_files = motion_files
         amp_num_preload_transitions = 2000000  # AMP 预加载的轨迹转换数量（200 万个）
-        amp_task_reward_lerp = 1  # 任务奖励与 AMP 奖励的混合系数  0.3
+        amp_task_reward_lerp = 0.3  # 任务奖励与 AMP 奖励的混合系数  0.3
         amp_discr_hidden_dims = [1024, 512]  # AMP 判别器（Discriminator）隐藏层维度
 
         min_normalized_std = [0.05, 0.02, 0.05] * 4
-        resume_path = "logs/go2_amp_example/Mar24_10-58-43_/model_5500.pt"
+        # resume_path = "logs/go2_amp_beat/Mar26_18-39-47_/model_1000.pt"
 
 
 #-----------------------------beat----------------------------------------------------
@@ -117,22 +109,23 @@ class GO2AMPCfg_beat(GO2AMPCfg):
         class scales(GO2AMPCfg.rewards.scales):
             torques = -0.0002
             dof_pos_limits = -10.0
-            tracking_lin_vel = 0
-            tracking_ang_vel = 0
+            tracking_lin_vel = 1.5 * 1. / (.005 * 6)
+            tracking_ang_vel = 0  # 0.5 * 1. / (.005 * 6)
             feet_air_time = 0
-            track_root_pos = 1
-            track_root_rot = 2.
+            track_root_pos = 0
+            track_root_rot = 0.
             track_lin_vel_ref = 0
             track_ang_vel_ref = 0
             track_dof_pos = 0
             track_dof_vel = 0
-            track_toe_pos = 5.
+            track_toe_pos = 0.
+            track_RLtoe_pos = 0
 
     class env(GO2AMPCfg.env):
-        motion_name = 'beat'
+        motion_name = 'trot'
 
 class GO2AMPCfgPPO_beat(GO2AMPCfgPPO):
     class runner(GO2AMPCfgPPO.runner):
         experiment_name = 'go2_amp_beat'
-        resume_path = "logs/go2_amp_beat/Mar26_18-39-47_/model_1000.pt"
+        resume_path = 'logs/go2_amp_beat/Mar28_20-00-57_/model_2000.pt'
 

@@ -91,7 +91,7 @@ class motionLoader:
                 dtype=torch.float32, device=device))
             self.trajectory_idxs.append(0)
             self.trajectory_weights.append(1)
-            self.trajectory_frame_durations.append(frame_duration)  # 1/36s
+            self.trajectory_frame_durations.append(frame_duration)
             traj_len = (motion_data.shape[0] - 1) * frame_duration
             self.trajectory_lens.append(traj_len)  # 约为2s
             self.trajectory_num_frames.append(float(motion_data.shape[0]))  # 70
@@ -143,17 +143,16 @@ class motionLoader:
             root_state = self.preloaded_s[:, :13]
             dof_pos = self.preloaded_s[:, 25:37]
             dof_vel = self.preloaded_s[:, 37:49]
-            foot_pos = self.preloaded_s[:, 13:25].reshape(-1, 4, 3)
+            foot_pos = self.preloaded_s[:, 13:25]
             self.preloaded_s = self.build_amp_observations(root_state, dof_pos, dof_vel, foot_pos)
 
             root_state = self.preloaded_s_next[:, :13]
             dof_pos = self.preloaded_s_next[:, 25:37]
             dof_vel = self.preloaded_s_next[:, 37:49]
-            foot_pos = self.preloaded_s_next[:, 19:31].reshape(-1, 4, 3)
+            foot_pos = self.preloaded_s_next[:, 13:25]
             self.preloaded_s_next = self.build_amp_observations(root_state, dof_pos, dof_vel, foot_pos)
-
-            print(f'Finished preloading')
-
+            # print('preloaded_s', self.preloaded_s)
+            # print('preloaded_s_next', self.preloaded_s_next)
 
         self.all_trajectories_full = torch.vstack(self.trajectories_full)
 
@@ -266,6 +265,7 @@ class motionLoader:
         all_frame_amp_ends = torch.zeros(len(traj_idxs),  self.JOINT_VEL_END_IDX - self.LINEAR_VEL_START_IDX, device=self.device)
         for traj_idx in set(traj_idxs):
             trajectory = self.trajectories_full[traj_idx]
+
             traj_mask = traj_idxs == traj_idx
             all_frame_pos_starts[traj_mask] = self.get_root_pos_batch(trajectory[idx_low[traj_mask]])
             all_frame_pos_ends[traj_mask] = self.get_root_pos_batch(trajectory[idx_high[traj_mask]])
@@ -429,20 +429,20 @@ class motionLoader:
 
         # 计算每个足端相对于机身坐标系的位置
         # 计算每条腿的位置
-        local_foot_pos = torch.zeros_like(foot_pos)  # (batch_size, 4, 3)
-
-        for i in range(4):  # 对每一条腿分别处理
-            foot_pos_leg = foot_pos[:, i, :]  # (batch_size, 3) 当前腿的足端位置
-            foot_pos_relative = foot_pos_leg - root_pos  # (batch_size, 3) 当前腿相对于机身的位置
-
-            # 使用 quat_rotate_inverse 将 foot_pos_relative 转换到机身坐标系
-            local_foot_pos[:, i, :] = quat_rotate_inverse(root_rot, foot_pos_relative)  # (batch_size, 3)
-
-        # 拼接最终的观察量
-        flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)  # 展平为 (batch_size, 12)
+        # local_foot_pos = torch.zeros_like(foot_pos)  # (batch_size, 4, 3)
+        #
+        # for i in range(4):  # 对每一条腿分别处理
+        #     foot_pos_leg = foot_pos[:, i, :]  # (batch_size, 3) 当前腿的足端位置
+        #     foot_pos_relative = foot_pos_leg - root_pos  # (batch_size, 3) 当前腿相对于机身的位置
+        #
+        #     # 使用 quat_rotate_inverse 将 foot_pos_relative 转换到机身坐标系
+        #     local_foot_pos[:, i, :] = quat_rotate_inverse(root_rot, foot_pos_relative)  # (batch_size, 3)
+        #
+        # # 拼接最终的观察量
+        # flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)  # 展平为 (batch_size, 12)
 
         obs = torch.cat(
-                (base_lin_vel, base_lin_ang, flat_local_foot_pos, dof_pos, dof_vel),
+                (base_lin_vel, base_lin_ang, foot_pos, dof_pos, dof_vel),
                 dim=-1)
         return obs
 

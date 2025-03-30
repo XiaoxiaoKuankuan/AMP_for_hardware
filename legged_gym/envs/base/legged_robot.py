@@ -231,7 +231,7 @@ class LeggedRobot(BaseTask):
         self.toe_pos_body[:, 6:9] = quat_rotate_inverse(self.base_quat, self.toe_pos_world[:, 6:9] - self.base_pos)
         self.toe_pos_body[:, 9:12] = quat_rotate_inverse(self.base_quat, self.toe_pos_world[:, 9:12] - self.base_pos)
 
-        toe_z = self.toe_pos_world[5]  # 右前脚的Z轴高度
+        toe_z = self.toe_pos_world[:, 5]  # 右前脚的Z轴高度
         time = self.time  # 当前时刻的时间戳
         # 更新历史记录
         self.update_toe_z_history(toe_z, time)
@@ -1598,6 +1598,9 @@ class LeggedRobot(BaseTask):
 
         # 检测落地：高度下降（dz < 0）且足端接近地面
         landing_mask = (dz < 0) & (toe_z[:-1] < ground_threshold)
+        # 确保 time 是一维张量
+        if time.ndimension() > 1:
+            time = time.squeeze()  # 去除多余的维度
 
         # 获取对应的时间
         action_times = time[:-1][landing_mask]  # 选取满足落地条件的时间点
@@ -1614,11 +1617,13 @@ class LeggedRobot(BaseTask):
 
     def get_toe_z_sequence(self):
         """ 返回最近的 toe_z 时间序列（作为 tensor） """
-        return torch.tensor(list(self.toe_z_history), device=self.device)
+        return torch.cat(list(self.toe_z_history), dim=0).to(self.device)
 
     def get_time_sequence(self):
         """ 返回最近的时间序列（作为 tensor） """
-        return torch.tensor(list(self.time_history), device=self.device)
+        time_sequence = [torch.tensor(t, device=self.device) if isinstance(t, np.ndarray) else t for t in
+                         self.time_history]
+        return torch.cat(time_sequence, dim=0).to(self.device)
 
     def calculate_frequency(self, action_times):
         """

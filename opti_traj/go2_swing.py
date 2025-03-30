@@ -4,6 +4,8 @@ from pybullet_utils.transformations import quaternion_slerp, quaternion_multiply
 import utils
 from casadi import *
 import json
+import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
 
 # 规划摇摆的轨迹，输出的文件为一个状态矩阵txt文件，列数为49列，因为读取文件的固定格式为49列
 # root位置[0:3]，root姿态[3:7] [x,y,z,w]，线速度[7:10]，角速度[10:13]
@@ -27,7 +29,8 @@ toe_pos = np.zeros((num_row, 12))
 dof_pos = np.zeros((num_row, 12))
 dof_vel = np.zeros((num_row-1, 12))
 
-
+# 将四元数转换为欧拉角
+euler_angles = np.zeros((num_row, 3))  # 存储 (roll, pitch, yaw)
 # 质心轨迹
 root_pos[:, 2] = 0.322
 # 质心线速度 默认为0
@@ -116,6 +119,34 @@ swing_ref[:, 10:13] = root_ang_vel
 swing_ref[:, 13:25] = toe_pos[:num_row-1,:]
 swing_ref[:, 25:37] = dof_pos[:num_row-1,:]
 swing_ref[:, 37:49] = dof_vel
+
+
+
+for i in range(num_row):
+    r = R.from_quat(root_rot[i, :])  # 以 [x, y, z, w] 形式传入四元数
+    euler_angles[i, :] = r.as_euler('xyz', degrees=True)  # 转换为度数
+
+# 创建时间轴
+time = np.arange(num_row) / fps  # 时间 (秒)
+
+# 绘制曲线
+plt.figure(figsize=(10, 6))
+plt.plot(time, euler_angles[:, 0], label='Roll (°)')
+plt.plot(time, euler_angles[:, 1], label='Pitch (°)')
+plt.plot(time, euler_angles[:, 2], label='Yaw (°)')
+
+# 图例、标题和标签
+plt.legend()
+plt.xlabel('Time (s)')
+plt.ylabel('Angle (°)')
+plt.title('Euler Angles over Time')
+plt.grid()
+plt.show()
+
+
+
+
+
 
 # 导出txt
 outfile = 'output/swing.txt'
