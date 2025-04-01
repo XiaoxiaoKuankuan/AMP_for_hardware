@@ -10,8 +10,8 @@ class GO2AMPCfg(LeggedRobotCfg):
     class env( LeggedRobotCfg.env ):
         num_envs = 4096
         include_history_steps = None  # Number of steps of history to include.
-        num_observations = 45  # 3 + 3 + 12 + 12+ 12
-        num_privileged_obs = 51    # 48 # 96  # 3 + 3 + 3 + 12 + 12 +12 + 3 + 48
+        num_observations = 43  # 3 + 3 + 1 +12 + 12+ 12
+        num_privileged_obs = 50    # 48 # 96  # 3 + 3 + 3 + 2 + 12 + 12 +12 + 3
         # reference_state_initialization = True
         # reference_state_initialization_prob = 0.85
         # amp_motion_files = MOTION_FILES  # AMP参考数据
@@ -89,7 +89,7 @@ class GO2AMPCfgPPO(LeggedRobotCfgPPO):
         experiment_name = 'go2_amp_example'
         algorithm_class_name = 'AMPPPO'
         policy_class_name = 'ActorCritic'
-        max_iterations = 50000 # number of policy updates
+        max_iterations = 100000 # number of policy updates
 
         amp_reward_coef = 2.0 # AMP 奖励系数
         motion_files = 'opti_traj/output_json'  # 我们的参考数据
@@ -109,7 +109,7 @@ class GO2AMPCfg_beat(GO2AMPCfg):
         class scales(GO2AMPCfg.rewards.scales):
             torques = -0.0002
             dof_pos_limits = -10.0
-            tracking_lin_vel = 1.5 * 1. / (.005 * 6)
+            tracking_lin_vel = 0 # 1.5 * 1. / (.005 * 6)
             tracking_ang_vel = 0  # 0.5 * 1. / (.005 * 6)
             feet_air_time = 0
             track_root_pos = 0
@@ -120,12 +120,14 @@ class GO2AMPCfg_beat(GO2AMPCfg):
             track_dof_vel = 0
             track_toe_pos = 0.
             track_RLtoe_pos = 0
+            calculate_sync = 1.5 * 1. / (.005 * 6)
+            beat_following = 0.2 * 1. / (.005 * 6)
 
     class env(GO2AMPCfg.env):
-        motion_name = 'trot'
+        motion_name = 'beat'
 
 class GO2AMPCfgPPO_beat(GO2AMPCfgPPO):
     class runner(GO2AMPCfgPPO.runner):
         experiment_name = 'go2_amp_beat'
-        resume_path = 'logs/go2_amp_beat/Mar28_20-00-57_/model_2000.pt'
+        resume_path = 'logs/go2_amp_beat/Mar30_20-50-54_/model_16000.pt'
 

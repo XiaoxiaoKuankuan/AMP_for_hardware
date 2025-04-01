@@ -119,16 +119,17 @@ class LeggedRobot(BaseTask):
         # self.motion_loader = AMPLoader(motion_files=self.cfg.env.amp_motion_files, device=self.device,
         #                                time_between_frames=self.dt)  # 先用AMP数据测试代码能不能用
         self.initial_time = torch.zeros(self.num_envs, device=self.device)
+        self.time_expanded = self.initial_time.unsqueeze(1)
         self.max_episode_length_s = self.motion_loader.trajectory_lens[self.action_id[0]]  # 轨迹秒
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)  # 轨迹步数
 
         # ------------------ audio_feature_extractor --------------------
-        # self.feature_extractor = AudioFeatureExtractor()
+        self.feature_extractor = AudioFeatureExtractor()
         # # 提取音乐节拍
-        # self.tempo, self.beat_time = self.feature_extractor.get_tempo_and_beats(self.max_episode_length_s)
+        self.tempo, self.beat_time = self.feature_extractor.get_tempo_and_beats(self.max_episode_length_s)
         # self.beat_completed = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        # self.beat_time = torch.tensor(self.beat_time, dtype=torch.float32).to(self.device)
-        # self.beat_time_expanded = self.beat_time.unsqueeze(0).repeat(self.num_envs, 1)
+        self.beat_time = torch.tensor(self.beat_time, dtype=torch.float32).to(self.device)
+        self.beat_time_expanded = self.beat_time.unsqueeze(0).repeat(self.num_envs, 1)
         # # beat_time_dim = self.beat_time_expanded.shape[1]
         # # print(f"Number of beats in beat_time_expanded: {beat_time_dim}")
         # self.beat_intervals = self.beat_time[1:] - self.beat_time[:-1]
@@ -138,11 +139,13 @@ class LeggedRobot(BaseTask):
         self.last_raised = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)  # 默认都未抬起
         self.raised_time = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)  # 默认抬起时间为0
         # 使用 deque 来存储最近的 max_history_length 个 toe_z 值
-        max_history_length = 10
-        self.toe_z_history = deque(maxlen=max_history_length)
-        self.time_history = deque(maxlen=max_history_length)  # 同样存储时间序列
-        self.max_history_length = max_history_length
-
+        self.max_history_length = 10
+        self.toe_z_history = deque(
+            [torch.zeros(self.num_envs, device=self.device) for _ in range(self.max_history_length)],
+            maxlen=self.max_history_length)
+        self.time_history = deque(
+            [torch.zeros(self.num_envs, device=self.device) for _ in range(self.max_history_length)],
+            maxlen=self.max_history_length)
     def reset(self):
         """ Reset all robots"""
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
@@ -207,13 +210,14 @@ class LeggedRobot(BaseTask):
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
 
-        self.time = self.episode_length_buf.cpu().numpy() / self.max_episode_length * self.max_episode_length_s # 时间 s
+        self.time = self.episode_length_buf / self.max_episode_length * self.max_episode_length_s
+        # self.time = self.episode_length_buf.cpu().numpy() / self.max_episode_length * self.max_episode_length_s # 时间 s
         # traj_idxs = self.motion_loader.weighted_traj_idx_sample_batch(self.num_envs)
-        traj_idxs = np.random.choice(self.action_id, size=self.num_envs, replace=True)  # action_id就一个 不随机
-        self.frames = self.motion_loader.get_full_frame_at_time_batch(traj_idxs, self.time)  #得到对应帧数据
-
-        self.ref_toe_pos = self.frames[:, 13:25]
-        self.ref_dof_pos = self.frames[:, 25:37]
+        # traj_idxs = np.random.choice(self.action_id, size=self.num_envs, replace=True)  # action_id就一个 不随机
+        # self.frames = self.motion_loader.get_full_frame_at_time_batch(traj_idxs, self.time)  #得到对应帧数据
+        #
+        # self.ref_toe_pos = self.frames[:, 13:25]
+        # self.ref_dof_pos = self.frames[:, 25:37]
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
@@ -231,10 +235,10 @@ class LeggedRobot(BaseTask):
         self.toe_pos_body[:, 6:9] = quat_rotate_inverse(self.base_quat, self.toe_pos_world[:, 6:9] - self.base_pos)
         self.toe_pos_body[:, 9:12] = quat_rotate_inverse(self.base_quat, self.toe_pos_world[:, 9:12] - self.base_pos)
 
-        toe_z = self.toe_pos_world[:, 5]  # 右前脚的Z轴高度
-        time = self.time  # 当前时刻的时间戳
+        # toe_z = self.toe_pos_world[:, 5]  # 右前脚的Z轴高度
+        # time = self.time  # 当前时刻的时间戳
         # 更新历史记录
-        self.update_toe_z_history(toe_z, time)
+        self.update_toe_z_history( self.toe_pos_world[:, 5], self.time)
         # 获取历史的时间序列
         time_sequence = self.get_time_sequence()
         toe_z_sequence = self.get_toe_z_sequence()
@@ -243,9 +247,9 @@ class LeggedRobot(BaseTask):
 
         # ----- 获取音乐节拍相关物理量 ----
         # self.right_foot_z_pos = self.rb_states[:, self.feet_indices[1], 2].view(self.num_envs, 1)  # tensor
-        # self.next_beat_time = self.get_next_beat()
-        # self.time_expanded = self.time.unsqueeze(1)
-        # self.next_beat_time_expand = self.next_beat_time.unsqueeze(1)
+        self.prev_beat_time = self.get_previous_beat()
+        self.time_expanded = self.time.unsqueeze(1)
+        self.prev_beat_time_expand = self.prev_beat_time.unsqueeze(1)
         # self.update_beat_state()
         # self.current_beat_state_tensor = self.current_beat_state.unsqueeze(1)
         # self.time_to_next_beat = self.next_beat_time - self.time
@@ -266,7 +270,7 @@ class LeggedRobot(BaseTask):
         self.last_dof_pos[:] = self.dof_pos[:]
         self.last_dof_vel[:] = self.dof_vel[:]
         self.last_torques[:] = self.torques[:]
-        self.last_root_vel[:] = self.root_states[:, 7:13]
+        # self.last_root_vel[:] = self.root_states[:, 7:13]
 
         if self.viewer and self.enable_viewer_sync and self.debug_viz:
             self._draw_debug_vis()
@@ -317,8 +321,8 @@ class LeggedRobot(BaseTask):
             self._reset_dofs_amp(env_ids, frames)
             self._reset_root_states_amp(env_ids, frames)
 
-        self._resample_commands(env_ids)
-
+        # self._resample_commands(env_ids)
+        self._resample_bpm(env_ids)
         # Randomize joint parameters
         self.randomize_motor_props(env_ids)
         self.randomize_dof_props(env_ids)
@@ -454,8 +458,9 @@ class LeggedRobot(BaseTask):
         self.privileged_obs_buf = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,  # 3
                                              self.base_ang_vel * self.obs_scales.ang_vel,  # 3
                                              self.projected_gravity,  # 3
-                                             self.commands[:, :3] * self.commands_scale,
-                                             # self.bpm * self.tempo_scale,
+                                             # self.commands[:, :3] * self.commands_scale,
+                                             self.bpm * self.obs_scales.tempo_scale,  # 把bpm当在命令
+                                             self.prev_beat_time_expand * self.obs_scales.next_beat_time_scale,
                                              (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
                                              # 12
                                              self.dof_vel * self.obs_scales.dof_vel,  # 12
@@ -469,7 +474,9 @@ class LeggedRobot(BaseTask):
                                              ), dim=-1)
         self.obs_buf = torch.cat((self.base_ang_vel * self.obs_scales.ang_vel,  # 3   # 3
                                   self.projected_gravity,  # 3   # 6
-                                  self.commands[:, :3] * self.commands_scale,
+                                  # self.commands[:, :3] * self.commands_scale,
+                                  self.bpm * self.obs_scales.tempo_scale,
+
                                   (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,  # 12   # 18
                                   self.dof_vel * self.obs_scales.dof_vel,  # 12  # 30
                                   self.actions,  # 12  # 42
@@ -827,11 +834,12 @@ class LeggedRobot(BaseTask):
         """
         # 
         env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt)==0).nonzero(as_tuple=False).flatten()
-        self._resample_commands(env_ids)
-        if self.cfg.commands.heading_command:
-            forward = quat_apply(self.base_quat, self.forward_vec)
-            heading = torch.atan2(forward[:, 1], forward[:, 0])
-            self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)
+        # self._resample_commands(env_ids)
+        # if self.cfg.commands.heading_command:
+        #     forward = quat_apply(self.base_quat, self.forward_vec)
+        #     heading = torch.atan2(forward[:, 1], forward[:, 0])
+        #     self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)
+        self._resample_bpm(env_ids)
 
         if self.cfg.terrain.measure_heights:
             self.measured_heights = self._get_heights()
@@ -846,11 +854,12 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): Environments ids for which new BPM values are needed
         """
         # 定义一个合理的 BPM 范围，可以根据实际需求调整
-        bpm_min = self.cfg.domain_rand.tempo[0]  # 最小 BPM 值
-        bpm_max = self.cfg.domain_rand.tempo[1]  # 最大 BPM 值
-
-        # 随机生成 BPM 值，并确保在指定的范围内
-        self.bpm[env_ids] = torch_rand_float(bpm_min, bpm_max, (len(env_ids), 1), device=self.device).squeeze(1)
+        # bpm_min = self.cfg.domain_rand.tempo[0]  # 最小 BPM 值
+        # bpm_max = self.cfg.domain_rand.tempo[1]  # 最大 BPM 值
+        #
+        # # 随机生成 BPM 值，并确保在指定的范围内
+        # self.bpm[env_ids] = torch_rand_float(bpm_min, bpm_max, (len(env_ids), 1), device=self.device).squeeze(1)
+        self.bpm = torch.tensor(self.cfg.domain_rand.tempo[0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1) #  TODO 没随机
 
 
     def _resample_commands(self, env_ids):
@@ -868,6 +877,7 @@ class LeggedRobot(BaseTask):
 
         # set small commands to zero  如果速度大小 小于 0.2，则设置为 0，防止指令过小导致机器人停滞
         self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+
 
     def _compute_torques(self, actions):
         """ Compute torques from actions.
@@ -1065,7 +1075,7 @@ class LeggedRobot(BaseTask):
         self.last_torques = torch.zeros_like(self.torques)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
         self.last_dof_pos = torch.zeros_like(self.dof_pos)
-        self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
+        # self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
         str_rng = self.cfg.domain_rand.motor_strength_range
         self.motor_strength = (str_rng[1] - str_rng[0]) * torch.rand(2, self.num_envs, self.num_actions,
                                                                      dtype=torch.float, device=self.device,
@@ -1082,7 +1092,7 @@ class LeggedRobot(BaseTask):
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
-        self.bpm = torch.zeros(self.num_envs, device=self.device)  # 随机节拍
+        self.bpm = torch.zeros(self.num_envs, device=self.device).unsqueeze(1)
 
         if self.cfg.terrain.measure_heights:
             self.height_points = self._init_height_points()
@@ -1134,9 +1144,9 @@ class LeggedRobot(BaseTask):
         self.origin_xy = torch.zeros_like(self.base_pos)
         self.toe_pos_body = torch.zeros((self.num_envs, 12), device=self.device)
 
-        action_delay_range = self.cfg.domain_rand.action_delay_range
-        self.delay = torch_rand_float(action_delay_range[0], action_delay_range[1], (self.num_envs, 1),
-                                      device=self.device)
+        # action_delay_range = self.cfg.domain_rand.action_delay_range
+        # self.delay = torch_rand_float(action_delay_range[0], action_delay_range[1], (self.num_envs, 1),
+        #                               device=self.device)  # TODO 没加延迟
 
     # def foot_position_in_hip_frame(self, angles, l_hip_sign=1):
     #     theta_ab, theta_hip, theta_knee = angles[:, 0], angles[:, 1], angles[:, 2]
@@ -1448,58 +1458,63 @@ class LeggedRobot(BaseTask):
         points[:, :, 1] = grid_y.flatten()
         return points
 
-    def get_next_beat(self):
-
-        # 将 self.beat_time 扩展为 (num_envs, num_beats) 的形状
-        self.beat_time_expanded = self.beat_time.unsqueeze(0)  # (1, 6)
-        self.beat_time_expanded = self.beat_time_expanded.expand(self.num_envs, -1)  # (50, 6)
+    def get_previous_beat(self):
+        """
+        计算并返回每个环境对应的参考节拍时间的上一个节拍时间。
+        """
+        # 将 self.beat_time 扩展为 (num_envs, num_beats) 的形状，并确保在指定设备上
+        # self.beat_time_expanded = self.beat_time.unsqueeze(0)  # (1, num_beats)
+        # self.beat_time_expanded = self.beat_time_expanded.expand(self.num_envs, -1)# (num_envs, num_beats)
 
         # 计算当前时间和所有节拍的时间差
-        self.beat_diff = self.beat_time_expanded - self.time_expanded  # (50, 6)
+        self.beat_diff = self.beat_time_expanded - self.time_expanded.to(self.device)  # (num_envs, num_beats)
 
-        # 筛选出未来的节拍（时间差为正的）
-        self.future_beat_diff = torch.where(self.beat_diff > 0, self.beat_diff, float('inf'))  # (50, 6)
+        # 筛选出过去的节拍（时间差为负的）
+        self.past_beat_diff = torch.where(self.beat_diff < 0, self.beat_diff, float('-inf'))  # (num_envs, num_beats)
 
-        # 找出最接近的未来节拍
-        self.next_beat_diff, self.next_beat_indices = torch.min(self.future_beat_diff, dim=1)  # (50,)
+        # 找出最接近的过去节拍
+        self.prev_beat_diff, self.prev_beat_indices = torch.max(self.past_beat_diff, dim=1)  # (num_envs,)
 
-        # 找到下一个节拍的实际时间
-        self.next_beat_time = self.beat_time[self.next_beat_indices]  # (50,)
+        # 如果没有找到过去的节拍（即所有的 past_beat_diff 都为 -inf），返回 0
+        self.prev_beat_time = torch.where(self.prev_beat_diff == float('-inf'),
+                                          torch.zeros(self.num_envs, device=self.device),  # 返回 0
+                                          self.beat_time[self.prev_beat_indices].to(self.device))  # 否则返回找到的节拍时间
 
-        return self.next_beat_time
-    def update_beat_state(self):
-        # 检查当前时间是否达到了下一个节拍
-        beat_reached = self.time >= self.next_beat_time  # (50,)
+        return self.prev_beat_time
 
-        # 更新打拍子状态
-        self.current_beat_state = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)  # 初始化当前打拍子状态
+    # def update_beat_state(self):
+    #     # 检查当前时间是否达到了下一个节拍
+    #     beat_reached = self.time >= self.next_beat_time  # (50,)
+    #
+    #     # 更新打拍子状态
+    #     self.current_beat_state = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)  # 初始化当前打拍子状态
+    #
+    #     # 如果有任何环境达到了节拍时间
+    #     if torch.any(beat_reached):
+    #         # 更新每个达到节拍的环境的状态
+    #         self.current_beat_state[beat_reached] = True
 
-        # 如果有任何环境达到了节拍时间
-        if torch.any(beat_reached):
-            # 更新每个达到节拍的环境的状态
-            self.current_beat_state[beat_reached] = True
-
-    def _is_beat_completed(self):
-        """
-        判断一次打拍子动作是否完成
-        返回：
-        bool - 如果打拍子动作完成则返回 True，否则返回 False
-        """
-        # 当前帧检测：脚的速度是否接近于零
-        # 当前帧检测：脚与地面接触的情况
-        is_on_ground = (self.right_foot_z_pos < self.ground_level).squeeze().to(self.device)
-        # 记录上一帧的状态
-        foot_was_moving = self.is_foot_moving.clone()  # 之前的状态
-        self.is_foot_moving = is_on_ground  # 更新当前脚的接触状态
-        # 检测打拍子完成的条件
-        beat_detected = is_on_ground & ~foot_was_moving  # 当前接触且上一帧不接触，表示完成打拍子
-        # is_on_ground = (self.right_foot_z_pos < self.ground_level).squeeze()
-        # foot_was_in_air = self.is_foot_in_air.clone()  # 之前的状态
-        # self.is_foot_in_air = ~is_on_ground  # 更新脚在空中的状态
-        # # 检测打拍子完成的条件
-        # beat_detected = is_on_ground & foot_was_in_air  # 当前在地面且之前在空中，表示完成打拍子
-
-        return beat_detected  # 返回当前检测到的打拍子状态
+    # def _is_beat_completed(self):
+    #     """
+    #     判断一次打拍子动作是否完成
+    #     返回：
+    #     bool - 如果打拍子动作完成则返回 True，否则返回 False
+    #     """
+    #     # 当前帧检测：脚的速度是否接近于零
+    #     # 当前帧检测：脚与地面接触的情况
+    #     is_on_ground = (self.right_foot_z_pos < self.ground_level).squeeze().to(self.device)
+    #     # 记录上一帧的状态
+    #     foot_was_moving = self.is_foot_moving.clone()  # 之前的状态
+    #     self.is_foot_moving = is_on_ground  # 更新当前脚的接触状态
+    #     # 检测打拍子完成的条件
+    #     beat_detected = is_on_ground & ~foot_was_moving  # 当前接触且上一帧不接触，表示完成打拍子
+    #     # is_on_ground = (self.right_foot_z_pos < self.ground_level).squeeze()
+    #     # foot_was_in_air = self.is_foot_in_air.clone()  # 之前的状态
+    #     # self.is_foot_in_air = ~is_on_ground  # 更新脚在空中的状态
+    #     # # 检测打拍子完成的条件
+    #     # beat_detected = is_on_ground & foot_was_in_air  # 当前在地面且之前在空中，表示完成打拍子
+    #
+    #     return beat_detected  # 返回当前检测到的打拍子状态
 
     def _get_heights(self, env_ids=None):
         """ Samples heights of the terrain at required points around each robot.
@@ -1556,7 +1571,7 @@ class LeggedRobot(BaseTask):
         w, x, y, z = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
         return torch.stack([w, -x, -y, -z], dim=1)  # 取共轭四元数
 
-    def _detect_kick(self):
+    def _detect_kick(self):  # 没用到
         """
         检测机器人是否完成了一次打拍子
         """
@@ -1586,66 +1601,80 @@ class LeggedRobot(BaseTask):
         计算机器人右前足端的落地时间，作为 action_times。
 
         参数：
-        - toe_z: (T,) 张量，表示 T 个时间步长的足端高度（单位：米）。
-        - time: (T,) 张量，表示对应的时间戳（单位：秒）。
+        - toe_z: (num_envs, T) 张量，表示 num_envs 个环境中每个环境的 T 个时间步长的足端高度（单位：米）。
+        - time: (num_envs, T) 张量，表示对应的时间戳（单位：秒）。
         - ground_threshold: 阈值，足端低于此值时认为触地。
 
         返回：
-        - action_times: (N,) 张量，记录每次落地的时间。
+        - action_times: (num_envs, N) 张量，记录每个环境的落地时间。
         """
-        # 计算足端的高度变化量（差分）
-        dz = torch.diff(toe_z)  # (T-1,)
+        # 计算足端的高度变化量（差分），这里的输出是 (num_envs, T-1)
+        dz = torch.diff(toe_z, dim=1)  # (num_envs, T-1)
 
         # 检测落地：高度下降（dz < 0）且足端接近地面
-        landing_mask = (dz < 0) & (toe_z[:-1] < ground_threshold)
-        # 确保 time 是一维张量
-        if time.ndimension() > 1:
-            time = time.squeeze()  # 去除多余的维度
+        landing_mask = (dz < 0) & (toe_z[:, :-1] < ground_threshold)  # (num_envs, T-1)
 
-        # 获取对应的时间
-        action_times = time[:-1][landing_mask]  # 选取满足落地条件的时间点
+        # 获取符合条件的时间戳
+        action_times = []
+        for env_idx in range(self.num_envs):
+            # 提取符合条件的时间戳（非零索引）
+            landing_indices = torch.nonzero(landing_mask[env_idx]).squeeze()  # 获取符合条件的时间步索引
+            if len(landing_indices) > 0:
+                # 使用这些索引提取对应的时间
+                action_times_env = time[env_idx, landing_indices]
+            else:
+                action_times_env = torch.tensor([], device=self.device)  # 如果没有落地事件，返回空张量
 
-        # 如果落地时间点少于10个，保持原有数量；如果超过10个，取10个
-        action_times = action_times[-10:]
+            # 如果每个环境的落地时间点少于10个，保持原有数量；如果超过10个，取10个
+            action_times_env = action_times_env[-10:]  # 限制最多10个落地时间
 
-        return action_times
+            # 填充至 10 个时间点，少于 10 个用 NaN 填充
+            if len(action_times_env) < 10:
+                padding = torch.full((10 - len(action_times_env),), float('nan'), device=self.device)
+                action_times_env = torch.cat([action_times_env, padding])
+
+            action_times.append(action_times_env)
+
+        # 将所有环境的落地时间组合为一个张量 (num_envs, 10)
+        action_times_tensor = torch.stack(action_times)
+
+        return action_times_tensor
 
     def update_toe_z_history(self, toe_z, time):
         """ 更新 toe_z 和时间序列 """
+        # 将新的 toe_z 和 time 按照顺序加入历史记录
         self.toe_z_history.append(toe_z)
         self.time_history.append(time)
 
+
     def get_toe_z_sequence(self):
         """ 返回最近的 toe_z 时间序列（作为 tensor） """
-        return torch.cat(list(self.toe_z_history), dim=0).to(self.device)
+        # 将所有环境的 toe_z 序列连接成一个 tensor，形状为 (num_envs, max_history_length)
+        return torch.stack(list(self.toe_z_history), dim=1)
 
     def get_time_sequence(self):
         """ 返回最近的时间序列（作为 tensor） """
-        time_sequence = [torch.tensor(t, device=self.device) if isinstance(t, np.ndarray) else t for t in
-                         self.time_history]
-        return torch.cat(time_sequence, dim=0).to(self.device)
+        # 将所有环境的时间序列连接成一个 tensor，形状为 (num_envs, max_history_length)
+        return torch.stack(list(self.time_history), dim=1)
 
     def calculate_frequency(self, action_times):
-        """
-        计算机器人的动作频率，即落地时间间隔的倒数。
-
-        参数：
-        - action_times: (N,) 张量，记录每次落地的时间。
-
-        返回：
-        - frequency: 机器人动作的频率（单位：Hz，即每秒动作数）。
-        """
         if len(action_times) < 2:
-            return 0.0  # 如果动作次数太少，则返回0频率
+            return torch.zeros(action_times.shape[0])  # 如果动作次数太少，则返回0频率，形状为 (num_envs,)
 
         # 计算相邻落地时间点的间隔（秒）
         intervals = torch.diff(action_times)
+
+        # 如果 intervals 中有 NaN 值，设置频率为 0
+        if torch.any(torch.isnan(intervals)):
+            return torch.zeros(action_times.shape[0])  # 返回频率为0，形状为 (num_envs,)
 
         # 计算平均间隔并取倒数得到频率
         avg_interval = intervals.mean()
         frequency = 1.0 / avg_interval if avg_interval > 0 else 0.0
 
-        return frequency
+        # 将计算的频率广播为与环境数量一致
+        return torch.full(action_times.shape[0], frequency)  # 返回形状为 (num_envs,) 的频率
+
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
         # Penalize z axis base linear velocity
@@ -1811,38 +1840,28 @@ class LeggedRobot(BaseTask):
         奖励函数，旨在根据机器人打拍子与音乐节奏的同步性进行奖励。
         目标是鼓励机器人在正确的时刻做出打拍子动作，并执行平稳的动作。
         """
-
+        action_times = self.action_times
+        latest_action_times = action_times[:, -1]
         # 计算落地时间与节拍时间点的差异
-        time_diff = torch.abs(self.action_times[:, None] - self.beat_time_expanded)  # 计算差异的绝对值
+        time_diff = torch.abs(latest_action_times.unsqueeze(1)  - self.prev_beat_time_expand)  # 计算差异的绝对值
 
         # 找到每个落地时间点与最近节拍时间点的差异
         min_time_diff, _ = time_diff.min(dim=1)
 
-        # 计算奖励：越接近节拍，奖励越高
+        # 计算奖励：越接近上一个节拍，奖励越高
         reward = torch.exp(-min_time_diff / 0.1)  # 使用指数衰减奖励，0.1 是控制奖励的阈值
+        # 将 NaN 替换为 0
+        reward = torch.nan_to_num(reward, nan=0.0)
+        return reward
 
-        # 最终奖励为所有动作的奖励之和
-        total_reward = reward.sum()
+    def _reward_calculate_sync(self):
 
-        return total_reward
-
-    def calculate_sync_reward(self, toe_z, time):
-        """
-        计算与音乐节拍同步的奖励。
-
-        参数：
-        - toe_z: (T,) 张量，表示 T 个时间步长的足端高度（单位：米）。
-        - time: (T,) 张量，表示对应的时间戳（单位：秒）。
-
-        返回：
-        - reward: 动作的同步奖励值。
-        """
 
         # 计算机器人动作的频率
         robot_frequency = self.calculate_frequency(self.action_times)
-
+        robot_frequency = robot_frequency.to(self.device)
         # 计算目标频率（BPM对应的频率）
-        target_frequency = self.bpm / 60.0
+        target_frequency = self.bpm.squeeze().to(self.device) / 60.0
 
         # 计算频率差异
         frequency_diff = torch.abs(robot_frequency - target_frequency)

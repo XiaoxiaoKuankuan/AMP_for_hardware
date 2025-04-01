@@ -254,9 +254,15 @@ class motionLoader:
         return self.blend_frame_pose(frame_start, frame_end, blend)
 
     def get_full_frame_at_time_batch(self, traj_idxs, times):
+        if isinstance(times, torch.Tensor):
+            times = times.cpu().numpy()
         p = times / self.trajectory_lens[traj_idxs]
         n = self.trajectory_num_frames[traj_idxs]-1
         idx_low, idx_high = np.floor(p * n).astype(np.int), np.ceil(p * n).astype(np.int)
+        idx_high = np.clip(idx_high, 0, n)
+        # print('idx_high is :',idx_high)
+        # print("idx_high max:", idx_high.max(), "n max:", n.max())
+
         all_frame_pos_starts = torch.zeros(len(traj_idxs), self.POS_SIZE, device=self.device)
         all_frame_pos_ends = torch.zeros(len(traj_idxs), self.POS_SIZE, device=self.device)
         all_frame_rot_starts = torch.zeros(len(traj_idxs), self.ROT_SIZE, device=self.device)
@@ -265,7 +271,6 @@ class motionLoader:
         all_frame_amp_ends = torch.zeros(len(traj_idxs),  self.JOINT_VEL_END_IDX - self.LINEAR_VEL_START_IDX, device=self.device)
         for traj_idx in set(traj_idxs):
             trajectory = self.trajectories_full[traj_idx]
-
             traj_mask = traj_idxs == traj_idx
             all_frame_pos_starts[traj_mask] = self.get_root_pos_batch(trajectory[idx_low[traj_mask]])
             all_frame_pos_ends[traj_mask] = self.get_root_pos_batch(trajectory[idx_high[traj_mask]])

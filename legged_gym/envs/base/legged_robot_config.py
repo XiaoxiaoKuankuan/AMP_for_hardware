@@ -205,7 +205,7 @@ class LeggedRobotCfg(BaseConfig):
         RSI_rand = False  # 参考轨迹基础上添加随机化
         RSI_traj_rand = True  # 初始轨迹随机化
 
-        tempo = [50, 70]
+        tempo = [60, 70]
 
     class rewards:
         class scales:
