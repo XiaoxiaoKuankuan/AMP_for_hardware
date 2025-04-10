@@ -374,7 +374,7 @@ class motionLoader:
     @property
     def observation_dim(self):
         """Size of AMP observations."""
-        return self.trajectories[0].shape[1]
+        return self.trajectories[0].shape[1] + 1
 
     @property
     def num_motions(self):
@@ -424,7 +424,7 @@ class motionLoader:
 
     def build_amp_observations(self, root_states, dof_pos, dof_vel, foot_pos):
 
-        root_pos = root_states[:, 0:3]
+        root_z_pos = root_states[:, 2:3]
         root_rot = root_states[:, 3:7]
         root_vel = root_states[:, 7:10]
         root_ang_vel = root_states[:, 10:13]
@@ -447,7 +447,7 @@ class motionLoader:
         # flat_local_foot_pos = local_foot_pos.view(local_foot_pos.shape[0], -1)  # 展平为 (batch_size, 12)
 
         obs = torch.cat(
-                (base_lin_vel, base_lin_ang, foot_pos, dof_pos, dof_vel),
+                (base_lin_vel, base_lin_ang, foot_pos, dof_pos, dof_vel, root_z_pos),
                 dim=-1)
         return obs
 

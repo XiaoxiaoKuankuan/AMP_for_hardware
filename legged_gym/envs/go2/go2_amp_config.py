@@ -19,7 +19,7 @@ class GO2AMPCfg(LeggedRobotCfg):
         frame_duration = 1 / 50
         RSI = 1  # 参考状态初始化
         num_actions = 12
-        motion_name = 'swing'
+        motion_name = 'beat'
 
     class init_state(LeggedRobotCfg.init_state):
         pos = [0.0, 0.0, 0.42]  # x,y,z [m]
@@ -30,9 +30,9 @@ class GO2AMPCfg(LeggedRobotCfg):
             'RR_hip_joint': -0.1,  # [rad]
 
             'FL_thigh_joint': 0.8,  # [rad]
-            'RL_thigh_joint': 1.,  # [rad]
+            'RL_thigh_joint': 0.8,  # [rad]
             'FR_thigh_joint': 0.8,  # [rad]
-            'RR_thigh_joint': 1.,  # [rad]
+            'RR_thigh_joint': 0.8,  # [rad]
 
             'FL_calf_joint': -1.5,  # [rad]
             'RL_calf_joint': -1.5,  # [rad]
@@ -107,21 +107,24 @@ class GO2AMPCfg_beat(GO2AMPCfg):
     class rewards(GO2AMPCfg.rewards):
 
         class scales(GO2AMPCfg.rewards.scales):
-            torques = -0.0002
-            dof_pos_limits = -10.0
+            torques = 0  #  -0.0002
+            dof_pos_limits = 0  # -10.0
             tracking_lin_vel = 0 # 1.5 * 1. / (.005 * 6)
             tracking_ang_vel = 0  # 0.5 * 1. / (.005 * 6)
-            feet_air_time = 0
-            track_root_pos = 0
-            track_root_rot = 0.
-            track_lin_vel_ref = 0
-            track_ang_vel_ref = 0
-            track_dof_pos = 0
-            track_dof_vel = 0
-            track_toe_pos = 0.
-            track_RLtoe_pos = 0
-            calculate_sync = 1.5 * 1. / (.005 * 6)
-            beat_following = 0.2 * 1. / (.005 * 6)
+            termination = 0 # -1
+            lin_vel_z = 0  #  -10.0  # 惩罚机器人在 Z 轴（垂直方向）上的线性速度。
+            ang_vel_xy = 0  # -0.2  # 惩罚机器人在 XY 平面（水平面）上的角速度  # -0.05
+            orientation = 0  # -10.  # 惩罚机器人的基座（底盘）没有保持平整
+            dof_vel = -0.
+            dof_acc = 0   # -2.5e-7
+            collision = 0  # -1.
+            action_rate = 0  #-0.01
+            beat_interval_match = 300
+            beat_following = 0
+            calculate_joint_angle = 0  # 50
+            feet_air_time = 1000
+            survival = 0
+            foot_lift_height = 50   # 300
 
     class env(GO2AMPCfg.env):
         motion_name = 'beat'
@@ -129,5 +132,36 @@ class GO2AMPCfg_beat(GO2AMPCfg):
 class GO2AMPCfgPPO_beat(GO2AMPCfgPPO):
     class runner(GO2AMPCfgPPO.runner):
         experiment_name = 'go2_amp_beat'
-        resume_path = 'logs/go2_amp_beat/Mar30_20-50-54_/model_16000.pt'
+        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_beat/Apr10_21-51-14_/model_3200.pt'
+
+
+#-----------------------------trot----------------------------------------------------
+class GO2AMPCfg_trot(GO2AMPCfg):
+    class rewards(GO2AMPCfg.rewards):
+
+        class scales(GO2AMPCfg.rewards.scales):
+            torques = 0  #  -0.0002
+            dof_pos_limits = 0  # -10.0
+            tracking_lin_vel = 1.5 * 1. / (.005 * 6) # 1.5 * 1. / (.005 * 6)
+            tracking_ang_vel = 0  # 0.5 * 1. / (.005 * 6)
+            termination = 0 # -1
+            lin_vel_z = 0  #  -10.0  # 惩罚机器人在 Z 轴（垂直方向）上的线性速度。
+            ang_vel_xy = 0  # -0.2  # 惩罚机器人在 XY 平面（水平面）上的角速度  # -0.05
+            orientation = 0  # -10.  # 惩罚机器人的基座（底盘）没有保持平整
+            dof_vel = -0.
+            dof_acc = 0   # -2.5e-7
+            collision = 0  # -1.
+            action_rate = 0  #-0.01
+
+
+    class env(GO2AMPCfg.env):
+        motion_files = 'opti_traj/output_json_trot'
+        motion_name = 'trot'
+
+class GO2AMPCfgPPO_trot(GO2AMPCfgPPO):
+    class runner(GO2AMPCfgPPO.runner):
+        experiment_name = 'go2_amp_trot'
+        motion_files = 'opti_traj/output_json_trot'  # 我们的参考数据
+        amp_motion_files = motion_files
+        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_beat/Apr09_22-29-02_/model_18400.pt'
 

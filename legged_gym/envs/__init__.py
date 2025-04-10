@@ -45,6 +45,7 @@ from .go2.go2_dance_config import GO2DanceCfg_stand, GO2DanceCfg_standPPO
 
 from .go2.go2_amp_config import GO2AMPCfg, GO2AMPCfgPPO
 from .go2.go2_amp_config import GO2AMPCfg_beat, GO2AMPCfgPPO_beat
+from .go2.go2_amp_config import GO2AMPCfg_trot, GO2AMPCfgPPO_trot
 import os
 
 from legged_gym.utils.task_registry import task_registry
@@ -63,3 +64,4 @@ task_registry.register("go2_stand", LeggedRobot, GO2DanceCfg_stand(), GO2DanceCf
 
 task_registry.register( "go2_amp", LeggedRobot, GO2AMPCfg(), GO2AMPCfgPPO() )
 task_registry.register( "go2_amp_beat", LeggedRobot, GO2AMPCfg_beat(), GO2AMPCfgPPO_beat() )
+task_registry.register( "go2_amp_trot", LeggedRobot, GO2AMPCfg_trot(), GO2AMPCfgPPO_trot() )

@@ -210,11 +210,11 @@ class LeggedRobotCfg(BaseConfig):
     class rewards:
         class scales:
             termination = -0.0
-            tracking_lin_vel = 1.0
-            tracking_ang_vel = 0.5
-            lin_vel_z = -2.0
-            ang_vel_xy = -0.05
-            orientation = -0.
+            tracking_lin_vel = 0
+            tracking_ang_vel = 0
+            lin_vel_z = -2.0  # 惩罚机器人在 Z 轴（垂直方向）上的线性速度。
+            ang_vel_xy = -0.05  # 惩罚机器人在 XY 平面（水平面）上的角速度
+            orientation = -0.  # 惩罚机器人的基座（底盘）没有保持平整
             torques = -0.00001
             dof_vel = -0.
             dof_acc = -2.5e-7
@@ -321,7 +321,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         max_iterations = 150000 # number of policy updates
 
         # logging
-        save_interval = 250 # check for potential saves every this many iterations
+        save_interval = 800 # check for potential saves every this many iterations
         experiment_name = 'test'
         run_name = ''
         # load and resume

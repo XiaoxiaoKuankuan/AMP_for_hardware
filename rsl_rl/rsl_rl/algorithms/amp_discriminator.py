@@ -68,5 +68,6 @@ class AMPDiscriminator(nn.Module):
         return reward.squeeze(), d
 
     def _lerp_reward(self, disc_r, task_r):
+        # print("disc_r is ", 0.7 * disc_r,"task_r is ", task_r * 0.3)
         r = (1.0 - self.task_reward_lerp) * disc_r + self.task_reward_lerp * task_r
         return r
