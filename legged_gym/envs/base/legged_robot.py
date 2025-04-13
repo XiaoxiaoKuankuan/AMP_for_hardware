@@ -120,7 +120,8 @@ class LeggedRobot(BaseTask):
         #                                time_between_frames=self.dt)  # 先用AMP数据测试代码能不能用
         self.initial_time = torch.zeros(self.num_envs, device=self.device)
         self.time_expanded = self.initial_time.unsqueeze(1)
-        self.max_episode_length_s = self.motion_loader.trajectory_lens[self.action_id[0]]  # 轨迹秒 float
+        # self.max_episode_length_s = self.motion_loader.trajectory_lens[self.action_id[0]]  # 轨迹秒 float
+        self.max_episode_length_s = self.cfg.env.episode_length_s  # TODO 时间不是轨迹时间
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.dt)  # 轨迹步数  float
 
         # ------------------ audio_feature_extractor --------------------
@@ -329,8 +330,8 @@ class LeggedRobot(BaseTask):
             self._reset_dofs_amp(env_ids, frames)
             self._reset_root_states_amp(env_ids, frames)
 
-        # self._resample_commands(env_ids)
-        self._resample_bpm(env_ids)
+        self._resample_commands(env_ids)  # TODO 训练trot
+        # self._resample_bpm(env_ids)
         # Randomize joint parameters
         self.randomize_motor_props(env_ids)
         self.randomize_dof_props(env_ids)
@@ -466,7 +467,7 @@ class LeggedRobot(BaseTask):
         self.privileged_obs_buf = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,  # 3
                                              self.base_ang_vel * self.obs_scales.ang_vel,  # 3
                                              self.projected_gravity,  # 3
-                                             # self.commands[:, :3] * self.commands_scale,
+                                             self.commands[:, :3] * self.commands_scale,
                                              self.bpm * self.obs_scales.tempo_scale,  # 把bpm当在命令
 
                                              (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
@@ -482,7 +483,7 @@ class LeggedRobot(BaseTask):
                                              ), dim=-1)
         self.obs_buf = torch.cat((self.base_ang_vel * self.obs_scales.ang_vel,  # 3   # 3
                                   self.projected_gravity,  # 3   # 6
-                                  # self.commands[:, :3] * self.commands_scale,
+                                  self.commands[:, :3] * self.commands_scale,
                                   self.bpm * self.obs_scales.tempo_scale,
 
                                   (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,  # 12   # 18
@@ -842,12 +843,12 @@ class LeggedRobot(BaseTask):
         """
         # 
         env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt)==0).nonzero(as_tuple=False).flatten()
-        # self._resample_commands(env_ids)
-        # if self.cfg.commands.heading_command:
-        #     forward = quat_apply(self.base_quat, self.forward_vec)
-        #     heading = torch.atan2(forward[:, 1], forward[:, 0])
-        #     self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)
-        self._resample_bpm(env_ids)
+        self._resample_commands(env_ids)
+        if self.cfg.commands.heading_command:
+            forward = quat_apply(self.base_quat, self.forward_vec)
+            heading = torch.atan2(forward[:, 1], forward[:, 0])
+            self.commands[:, 2] = torch.clip(0.5*wrap_to_pi(self.commands[:, 3] - heading), -1., 1.)  # TODO 训练trot
+        # self._resample_bpm(env_ids)
 
         if self.cfg.terrain.measure_heights:
             self.measured_heights = self._get_heights()
@@ -862,13 +863,13 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): Environments ids for which new BPM values are needed
         """
         # 定义一个合理的 BPM 范围，可以根据实际需求调整
-        # bpm_min = self.cfg.domain_rand.tempo[0]  # 最小 BPM 值
-        # bpm_max = self.cfg.domain_rand.tempo[1]  # 最大 BPM 值
+        bpm_min = self.cfg.domain_rand.tempo[0]  # 最小 BPM 值
+        bpm_max = self.cfg.domain_rand.tempo[1]  # 最大 BPM 值
         #
         # # 随机生成 BPM 值，并确保在指定的范围内
-        # self.bpm[env_ids] = torch_rand_float(bpm_min, bpm_max, (len(env_ids), 1), device=self.device).squeeze(1)
-        self.bpm = torch.tensor(self.cfg.domain_rand.tempo[0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1) #  TODO 没随机
-
+        self.bpm[env_ids] = torch_rand_float(bpm_min, bpm_max, (len(env_ids), 1), device=self.device).squeeze(1)
+        # self.bpm = torch.tensor(self.cfg.domain_rand.tempo[0], device=self.device).unsqueeze(0).repeat(self.num_envs, 1) #  TODO 没随机
+        self.commands[:, 0] = 0.01 * self.bpm
 
     def _resample_commands(self, env_ids):
         """ Randommly select commands of some environments
@@ -1856,7 +1857,7 @@ class LeggedRobot(BaseTask):
 
     def _reward_track_RLtoe_pos(self):
         # 跟踪末端执行器的相对位置
-        temp = torch.exp(-1000 * torch.sum(torch.square(self.frames[:, 16:19] - self.toe_pos_body[:, 3:6]), dim=1))
+        temp = torch.exp(-100 * torch.sum(torch.square(self.frames[:, 16:19] - self.toe_pos_body[:, 3:6]), dim=1))
         return temp
 
     def _reward_track_dof_pos(self):

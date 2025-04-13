@@ -38,7 +38,7 @@ class LeggedRobotCfg(BaseConfig):
         num_actions = 12
         env_spacing = 3.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
-        episode_length_s = 20 # episode length in seconds
+        episode_length_s = 10 # episode length in seconds
         include_history_steps = None
 
         debug = False
@@ -81,7 +81,7 @@ class LeggedRobotCfg(BaseConfig):
         resampling_time = 10. # time before command are changed[s]  每 10 秒 更新一次指令
         heading_command = True # if true: compute ang vel command from heading error 如果 True，那么角速度命令（ang_vel_yaw）不是直接设定的，而是从朝向误差计算得出
         class ranges:
-            lin_vel_x = [0.5, 0.7] # min max [m/s]
+            lin_vel_x = [0.6, 0.7] # min max [m/s]
             lin_vel_y = [0, 0]   # min max [m/s]
             ang_vel_yaw = [0, 0]    # min max [rad/s]
             heading = [-3.14, 3.14]
@@ -245,7 +245,7 @@ class LeggedRobotCfg(BaseConfig):
             # right_foot_z_pos_scale = 1
             time_to_next_scale = 0.5
             beat_interval_scale = 0.1
-            tempo_scale = 0.1
+            tempo_scale = 0.01
             beat_time_expanded = 0.25
         clip_observations = 100.
         clip_actions = 2.5

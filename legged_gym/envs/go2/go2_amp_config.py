@@ -125,6 +125,7 @@ class GO2AMPCfg_beat(GO2AMPCfg):
             feet_air_time = 1000
             survival = 0
             foot_lift_height = 50   # 300
+            track_RLtoe_pos = 50
 
     class env(GO2AMPCfg.env):
         motion_name = 'beat'
@@ -132,7 +133,7 @@ class GO2AMPCfg_beat(GO2AMPCfg):
 class GO2AMPCfgPPO_beat(GO2AMPCfgPPO):
     class runner(GO2AMPCfgPPO.runner):
         experiment_name = 'go2_amp_beat'
-        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_beat/Apr10_21-51-14_/model_3200.pt'
+        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_beat/Apr10_22-35-51_/model_13600.pt'
 
 
 #-----------------------------trot----------------------------------------------------
@@ -152,16 +153,25 @@ class GO2AMPCfg_trot(GO2AMPCfg):
             dof_acc = 0   # -2.5e-7
             collision = 0  # -1.
             action_rate = 0  #-0.01
+            feet_air_time = 0
 
 
     class env(GO2AMPCfg.env):
+        num_observations = 46  # 3 + 3 + 1 +12 + 12+ 12
+        num_privileged_obs = 53
         motion_files = 'opti_traj/output_json_trot'
         motion_name = 'trot'
+
+    # class commands:
+    #     curriculum = False  # 是否使用 课程学习（curriculum learning）
+    #     max_curriculum = 1.  # 课程学习的最大难度级别
+    #     num_commands = 1 # temp
+    #     resampling_time = 5. # time before command are changed[s]  每 10 秒 更新一次指令
 
 class GO2AMPCfgPPO_trot(GO2AMPCfgPPO):
     class runner(GO2AMPCfgPPO.runner):
         experiment_name = 'go2_amp_trot'
         motion_files = 'opti_traj/output_json_trot'  # 我们的参考数据
         amp_motion_files = motion_files
-        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_beat/Apr09_22-29-02_/model_18400.pt'
+        resume_path = '/home/lw/PycharmProjects/AMP_for_robot_dance/AMP_for_hardware/logs/go2_amp_trot/Apr11_16-21-49_/model_66400.pt'
 
